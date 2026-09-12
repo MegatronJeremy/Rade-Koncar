@@ -101,6 +101,7 @@ export const LiveApp = (): React.JSX.Element => {
   // The newest of mine that the orchestrator is still working on, if any.
   const live = myRuns.find((r) => isWorking(r)) ?? null;
   const [chosenId, setChosenId] = useState<string | undefined>(undefined);
+  const [stage, setStage] = useState<Stage>("run");
   const base = useOrchestrator();
   const orchestrator = {
     ...base,
@@ -111,11 +112,11 @@ export const LiveApp = (): React.JSX.Element => {
         setMineIds(next);
         writeMine(next);
         setChosenId(undefined);
+        setStage("yours");
       }
       return id;
     },
   };
-  const [stage, setStage] = useState<Stage>("run");
 
   /*
    * The gallery owns its own query so a deployment missing sampleRuns takes
@@ -150,6 +151,7 @@ export const LiveApp = (): React.JSX.Element => {
         stage={stage}
         onStage={setStage}
         sampleCount={gallery.length}
+        yoursCount={myRuns.length}
         running={liveRunning}
       />
       {stage === "run" ? (
@@ -160,14 +162,15 @@ export const LiveApp = (): React.JSX.Element => {
           submit={orchestrator.submit}
             onBrowseSamples={() => setStage("samples")}
           />
-          <YourRunsPanel
-            ids={mineIds}
-            selectedId={chosen?.id}
-            onPick={setChosenId}
-            onLoaded={setMyRuns}
-          />
         </>
       ) : null}
+      <YourRunsPanel
+        hidden={stage !== "yours"}
+        ids={mineIds}
+        selectedId={chosen?.id}
+        onPick={setChosenId}
+        onLoaded={setMyRuns}
+      />
       <SampleGallery
         hidden={stage !== "samples"}
         selectedId={chosen?.id ?? (liveRunning ? undefined : fromConvex?.id)}

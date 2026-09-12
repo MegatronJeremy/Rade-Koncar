@@ -6,13 +6,15 @@ import { Boundary } from "./Boundary";
 import { YourRuns } from "./YourRuns";
 
 interface PanelProps {
+  /** Kept mounted while hidden: the query feeds the tab's count and the live run. */
+  readonly hidden?: boolean;
   readonly ids: readonly string[];
   readonly selectedId: string | undefined;
   readonly onPick: (runId: string) => void;
   readonly onLoaded: (runs: readonly Run[]) => void;
 }
 
-const Inner = ({ ids, selectedId, onPick, onLoaded }: PanelProps): React.JSX.Element | null => {
+const Inner = ({ hidden, ids, selectedId, onPick, onLoaded }: PanelProps): React.JSX.Element | null => {
   const runs = useQuery(api.runs.runsByIds, ids.length === 0 ? "skip" : { ids: [...ids] });
   const mine = (runs ?? []) as readonly Run[];
 
@@ -24,6 +26,7 @@ const Inner = ({ ids, selectedId, onPick, onLoaded }: PanelProps): React.JSX.Ele
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  if (hidden === true) return null;
   return <YourRuns runs={mine} selectedId={selectedId} onPick={onPick} />;
 };
 

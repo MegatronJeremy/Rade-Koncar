@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 
-export type Stage = "run" | "samples";
+export type Stage = "run" | "yours" | "samples";
 
 interface RailProps {
   readonly stage: Stage;
   readonly onStage: (stage: Stage) => void;
   readonly sampleCount: number;
+  readonly yoursCount: number;
   readonly running: boolean;
 }
 
@@ -28,7 +29,7 @@ const Tab = ({
  * stays put; only the stage under it changes, so the run being watched never
  * scrolls away behind a tab.
  */
-export const Rail = ({ stage, onStage, sampleCount, running }: RailProps): React.JSX.Element => (
+export const Rail = ({ stage, onStage, sampleCount, yoursCount, running }: RailProps): React.JSX.Element => (
   <div className="rail">
     <div className="rail-in">
       <div className="rail-id">
@@ -43,8 +44,14 @@ export const Rail = ({ stage, onStage, sampleCount, running }: RailProps): React
       <nav className="tabs" aria-label="Views">
         <Tab active={stage === "run"} onClick={() => onStage("run")}>
           Run yours
-          {running ? <i className="pip" aria-label="a run is happening now" /> : null}
         </Tab>
+        {yoursCount > 0 ? (
+          <Tab active={stage === "yours"} onClick={() => onStage("yours")}>
+            Your runs <span className="tab-n">{yoursCount}</span>
+            {/* The pip lives here because this is where a run in flight is listed. */}
+            {running ? <i className="pip" aria-label="a run is happening now" /> : null}
+          </Tab>
+        ) : null}
         <Tab active={stage === "samples"} onClick={() => onStage("samples")}>
           Samples <span className="tab-n">{sampleCount}</span>
         </Tab>
