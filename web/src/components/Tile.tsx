@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { addTile } from "../liveTiles";
 import type { Candidate } from "../types";
 
 interface TileProps {
@@ -33,6 +35,36 @@ const scoreTitle = (candidate: Candidate): string => {
   return `palette ${scores.palette} + motion ${scores.motion} + subject ${scores.subject}, out of 10 each`;
 };
 
+/**
+ * The tile running its own shader. Falls back to the captured PNGs by telling
+ * the parent it could not start, which covers a missing WebGL2 context, a
+ * shader the browser rejects, and the context limit being reached.
+ */
+const LiveFrame = ({
+  source,
+  label,
+  onUnavailable,
+}: {
+  readonly source: string;
+  readonly label: string;
+  readonly onUnavailable: () => void;
+}): React.JSX.Element => {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (canvas === null) return;
+    const release = addTile(canvas, source);
+    if (release === null) {
+      onUnavailable();
+      return;
+    }
+    return release;
+  }, [source, onUnavailable]);
+
+  return <canvas ref={ref} className="tile-live" aria-label={label} />;
+};
+
 const FrameBody = ({
   candidate,
   frame,
@@ -40,6 +72,11 @@ const FrameBody = ({
   readonly candidate: Candidate;
   readonly frame: number;
 }): React.JSX.Element => {
+  const [liveOff, setLiveOff] = useState<boolean>(false);
+  // Must be stable. The grid re-renders every 500 ms to advance `frame`, and an
+  // inline callback would re-run the effect and re-register the tile each time.
+  const onUnavailable = useCallback(() => setLiveOff(true), []);
+
   switch (candidate.status) {
     case "compile_error":
       return <pre className="tile-log">{candidate.log ?? "Shader failed to compile."}</pre>;
@@ -65,6 +102,15 @@ const FrameBody = ({
       );
 
     case "scored": {
+      if (!liveOff && candidate.source.length > 0) {
+        return (
+          <LiveFrame
+            source={candidate.source}
+            label={`${candidate.strategy}, running live`}
+            onUnavailable={onUnavailable}
+          />
+        );
+      }
       const src = candidate.frameUrls[frame] ?? candidate.frameUrls[0];
       if (src === undefined) {
         return (
