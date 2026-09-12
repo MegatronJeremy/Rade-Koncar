@@ -80,6 +80,7 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
     );
   }
 
+  const working = run.status === "running" || run.status === "queued";
   const control = run.generations[0];
   /*
    * A generation exists from createGeneration, before its six candidates do, so
@@ -88,10 +89,19 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
    * from the round picker still wins.
    */
   const withTiles = run.generations.filter((g) => g.candidates.length > 0);
+  const newest = run.generations[run.generations.length - 1];
+  /*
+   * While a run is working, show the newest round even before it holds
+   * anything: placeholders fill it, so the page moves the instant a round is
+   * asked for. Falling back to the last round with tiles was right before there
+   * were placeholders, but it means clicking for another round changes nothing
+   * on screen for the ninety seconds the model spends writing.
+   */
   const shown =
     run.generations.find((g) => g.id === shownGenerationId) ??
+    (working ? newest : undefined) ??
     withTiles[withTiles.length - 1] ??
-    run.generations[run.generations.length - 1];
+    newest;
 
   if (control === undefined || shown === undefined) {
     return (
@@ -115,7 +125,6 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
    * round that produced fewer than six, because a generation was rejected on
    * its signature, is complete and should not show a gap waiting to fill.
    */
-  const working = run.status === "running" || run.status === "queued";
   const gain = bestTotal(shown) - bestTotal(control);
 
   return (

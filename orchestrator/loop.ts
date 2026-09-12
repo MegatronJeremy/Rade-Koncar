@@ -1,4 +1,13 @@
-import { compareGenerations, generateCandidates, mutateCandidates, rankGeneration, spend } from "./llm";
+import {
+  beginCancellable,
+  cancelInFlight,
+  compareGenerations,
+  endCancellable,
+  generateCandidates,
+  mutateCandidates,
+  rankGeneration,
+  spend,
+} from "./llm";
 import { renderer, sink, mode } from "./sink";
 import { rankingScore, scoreCandidate } from "./score";
 import type * as store from "./store";
@@ -162,6 +171,10 @@ const stopping = new Set<string>();
 
 export const requestStop = (runId: string): boolean => {
   stopping.add(runId);
+  // Interrupt whatever is in flight rather than waiting for the next
+  // checkpoint: writing six shaders and scoring them are the two longest
+  // stretches, and neither had one inside it.
+  cancelInFlight();
   return true;
 };
 
@@ -206,6 +219,7 @@ export async function runOnce(
    * is removed on the normal path so a long-lived server does not accumulate one
    * per run.
    */
+  beginCancellable();
   let tearingDown = false;
   const onSignal = (sig: NodeJS.Signals): void => {
     if (tearingDown) return;
@@ -357,12 +371,13 @@ export async function runOnce(
     // A stop is an outcome, not a crash: the rounds already finished stay
     // readable, and the row reads "stopped" rather than throwing at the caller.
     await out.setRunStatus(runId, "failed");
-    if (err instanceof Stopped) {
+    if (err instanceof Stopped || stopping.has(runId)) {
       console.log(`[run ${runId}] stopped`);
       return runId;
     }
     throw err;
   } finally {
+    endCancellable();
     stopping.delete(runId);
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);

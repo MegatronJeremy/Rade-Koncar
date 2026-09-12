@@ -64,6 +64,35 @@ interface Envelope {
 let spentUSD = 0;
 export const spend = (): number => spentUSD;
 
+/*
+ * Cancellation for whatever call is in flight.
+ *
+ * Stopping used to be checked between steps, so a stop during the ninety
+ * seconds spent writing six shaders, or during the six vision calls that score
+ * them, waited for the whole call to finish. If the round finished first the
+ * stop appeared to do nothing at all.
+ *
+ * A module-level signal is safe because the service runs one run at a time, by
+ * the same quota that made stopping worth having. If that guard is ever
+ * relaxed, this has to become per-run.
+ */
+let current: AbortController | undefined;
+
+export const beginCancellable = (): AbortController => {
+  current = new AbortController();
+  return current;
+};
+
+export const cancelInFlight = (): void => {
+  current?.abort();
+};
+
+export const endCancellable = (): void => {
+  current = undefined;
+};
+
+const signal = (): AbortSignal | undefined => current?.signal;
+
 interface CliCall {
   system: string;
   prompt: string;
@@ -120,6 +149,11 @@ async function cli(call: CliCall): Promise<unknown> {
 
   const out = await new Promise<string>((ok, fail) => {
     const p = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const abort = (): void => {
+      p.kill("SIGTERM");
+      fail(new Error("cancelled"));
+    };
+    signal()?.addEventListener("abort", abort, { once: true });
     let so = "", se = "";
     p.stdout.on("data", (d) => (so += d));
     p.stderr.on("data", (d) => (se += d));
@@ -312,14 +346,17 @@ const looseJson = (text: string): unknown => {
 };
 
 async function xaiJson(system: string, content: OpenAI.ChatCompletionContentPart[] | string, schema: unknown, name: string): Promise<unknown> {
-  const res = await xai().chat.completions.create({
+  const res = await xai().chat.completions.create(
+    {
     model: xaiModel(),
     messages: [
       { role: "system", content: system },
       { role: "user", content: content as never },
     ],
     response_format: { type: "json_schema", json_schema: { name, schema, strict: true } } as never,
-  });
+    },
+    { signal: signal() },
+  );
   const u = res.usage;
   // x.ai pricing is not tracked here; token counts go to the log instead.
   if (u) console.log(`[xai] in=${u.prompt_tokens} out=${u.completion_tokens}`);

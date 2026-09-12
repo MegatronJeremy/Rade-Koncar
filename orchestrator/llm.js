@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.spend = void 0;
+exports.endCancellable = exports.cancelInFlight = exports.beginCancellable = exports.spend = void 0;
 exports.generateCandidates = generateCandidates;
 exports.mutateCandidates = mutateCandidates;
 exports.scoreFrames = scoreFrames;
@@ -61,6 +61,33 @@ const VERDICT_SCHEMA = {
 let spentUSD = 0;
 const spend = () => spentUSD;
 exports.spend = spend;
+/*
+ * Cancellation for whatever call is in flight.
+ *
+ * Stopping used to be checked between steps, so a stop during the ninety
+ * seconds spent writing six shaders, or during the six vision calls that score
+ * them, waited for the whole call to finish. If the round finished first the
+ * stop appeared to do nothing at all.
+ *
+ * A module-level signal is safe because the service runs one run at a time, by
+ * the same quota that made stopping worth having. If that guard is ever
+ * relaxed, this has to become per-run.
+ */
+let current;
+const beginCancellable = () => {
+    current = new AbortController();
+    return current;
+};
+exports.beginCancellable = beginCancellable;
+const cancelInFlight = () => {
+    current?.abort();
+};
+exports.cancelInFlight = cancelInFlight;
+const endCancellable = () => {
+    current = undefined;
+};
+exports.endCancellable = endCancellable;
+const signal = () => current?.signal;
 /**
  * --tools only names which tools exist; --allowedTools grants permission to use
  * them. With the first and not the second the model is refused silently, burns
@@ -106,6 +133,11 @@ async function cli(call) {
     }
     const out = await new Promise((ok, fail) => {
         const p = (0, node_child_process_1.spawn)(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+        const abort = () => {
+            p.kill("SIGTERM");
+            fail(new Error("cancelled"));
+        };
+        signal()?.addEventListener("abort", abort, { once: true });
         let so = "", se = "";
         p.stdout.on("data", (d) => (so += d));
         p.stderr.on("data", (d) => (se += d));
@@ -292,7 +324,7 @@ async function xaiJson(system, content, schema, name) {
             { role: "user", content: content },
         ],
         response_format: { type: "json_schema", json_schema: { name, schema, strict: true } },
-    });
+    }, { signal: signal() });
     const u = res.usage;
     // x.ai pricing is not tracked here; token counts go to the log instead.
     if (u)
