@@ -33,6 +33,31 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
 
   if (run === undefined) return <main className="empty" />;
 
+  const tiles = run.generations.reduce((n, g) => n + g.candidates.length, 0);
+
+  /*
+   * A run is created before the model has written anything, and writing six
+   * shaders takes around two minutes. Without this the page shows an empty grid
+   * for that whole stretch, and anyone who reloads cannot tell their prompt
+   * survived.
+   */
+  if (tiles === 0) {
+    const working = run.status === "queued" || run.status === "running";
+    return (
+      <main className="starting">
+        <span className={`run-state${working ? " is-live" : ""}`}>
+          {working ? "Running now" : run.status}
+        </span>
+        <p className="starting-prompt">{run.prompt}</p>
+        <p className="starting-note">
+          {working
+            ? "Writing six shaders. The first tiles appear in about two minutes, then each renders in its own sandbox."
+            : "This run produced nothing."}
+        </p>
+      </main>
+    );
+  }
+
   const control = run.generations[0];
   /*
    * A generation exists from createGeneration, before its six candidates do, so

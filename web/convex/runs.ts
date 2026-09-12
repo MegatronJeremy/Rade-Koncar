@@ -62,12 +62,22 @@ export const pinRun = mutation({
 const RECENT_RUN_SCAN = 25;
 
 /**
- * The newest run that has something to show.
+ * How long a run may sit in queued or running before it is treated as dead.
+ * Writing the first six shaders alone takes around two minutes, and the longest
+ * run measured took under twenty. A process killed mid-run leaves its row
+ * "running" forever, so without this one abandoned row would hide the pinned
+ * run from every later visitor.
+ */
+const IN_PROGRESS_MS = 20 * 60 * 1000;
+
+/**
+ * The newest run worth showing: one that has a candidate, or one still working
+ * on its first.
  *
- * Runs with no candidates are skipped rather than returned empty. Every run is
- * created before its first candidate exists, and a run that dies early stays
- * that way forever, so returning the newest row would blank the grid at the
- * start of every run and leave it blank after any failed one.
+ * A run exists from createRun, and its first candidate only appears once the
+ * model has written six shaders. Skipping candidate-less runs outright hid a
+ * fresh run for those two minutes, so anyone who reloaded lost sight of the
+ * prompt they had just sent.
  */
 export const latestRun = query({
   args: {},
@@ -78,7 +88,13 @@ export const latestRun = query({
       .order("desc")
       .take(RECENT_RUN_SCAN);
 
+    const now = Date.now();
     for (const run of runs) {
+      const working =
+        (run.status === "queued" || run.status === "running") &&
+        now - run.createdAt < IN_PROGRESS_MS;
+      if (working) return hydrateRun(ctx, run);
+
       const candidate = await ctx.db
         .query("candidates")
         .withIndex("by_run", (q) => q.eq("runId", run._id))

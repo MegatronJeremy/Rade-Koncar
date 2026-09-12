@@ -1103,3 +1103,28 @@ body {
   padding-left: var(--edge);
   padding-right: var(--edge);
 }
+
+/* ---------- a run that has not produced a tile yet ---------- */
+
+.starting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 40px var(--pad) 60px;
+}
+
+.starting-prompt {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.starting-note {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--ink-faint);
+  font-size: 13.5px;
+  line-height: 1.5;
+}

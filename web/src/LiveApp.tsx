@@ -21,8 +21,12 @@ const hasTiles = (run: Run | null | undefined): run is Run =>
  * shows the pinned run. Judges open this link days later with nothing else
  * running, so the pinned run is the front door rather than a fallback.
  */
+/** Queued or running: the orchestrator is working on it, tiles or not. */
+const isWorking = (run: Run | null): run is Run =>
+  run !== null && (run.status === "queued" || run.status === "running");
+
 const pickRun = (live: Run | null, pinned: Run | null): Run | undefined => {
-  if (hasTiles(live) && live.status === "running") return live;
+  if (isWorking(live)) return live;
   if (hasTiles(pinned)) return pinned;
   if (hasTiles(live)) return live;
   return undefined;
@@ -55,8 +59,13 @@ export const LiveApp = (): React.JSX.Element => {
    * A run happening now always wins: someone is watching their own prompt. A
    * sample the visitor picked comes next, then the pinned run.
    */
-  const liveRunning = hasTiles(live) && live.status === "running";
-  const fromConvex = loading ? undefined : liveRunning ? live : (chosen ?? pickRun(live, pinned));
+  const current = live ?? null;
+  const liveRunning = isWorking(current);
+  const fromConvex = loading
+    ? undefined
+    : liveRunning
+      ? current
+      : (chosen ?? pickRun(current, pinned ?? null));
 
   return (
     <>
