@@ -58,12 +58,34 @@ export const pinRun = mutation({
 
 /* ---------- queries the UI subscribes to ---------- */
 
-/** The newest run, whatever its status. Hydrated: generations, candidates, frame URLs. */
+/** How far back to look for a run worth showing. Bounds the scan on a dead deployment. */
+const RECENT_RUN_SCAN = 25;
+
+/**
+ * The newest run that has something to show.
+ *
+ * Runs with no candidates are skipped rather than returned empty. Every run is
+ * created before its first candidate exists, and a run that dies early stays
+ * that way forever, so returning the newest row would blank the grid at the
+ * start of every run and leave it blank after any failed one.
+ */
 export const latestRun = query({
   args: {},
   handler: async (ctx) => {
-    const run = await ctx.db.query("runs").withIndex("by_createdAt").order("desc").first();
-    return run === null ? null : hydrateRun(ctx, run);
+    const runs = await ctx.db
+      .query("runs")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(RECENT_RUN_SCAN);
+
+    for (const run of runs) {
+      const candidate = await ctx.db
+        .query("candidates")
+        .withIndex("by_run", (q) => q.eq("runId", run._id))
+        .first();
+      if (candidate !== null) return hydrateRun(ctx, run);
+    }
+    return null;
   },
 });
 

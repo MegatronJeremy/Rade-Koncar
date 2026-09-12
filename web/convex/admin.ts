@@ -23,6 +23,26 @@ export const clearAll = mutation({
   },
 });
 
+/** Deletes one run and everything under it. For clearing runs that died before
+ * producing a candidate, which otherwise sit in the table forever. */
+export const deleteRun = mutation({
+  args: { runId: v.id("runs") },
+  returns: v.object({ generations: v.number(), candidates: v.number() }),
+  handler: async (ctx, args) => {
+    const candidates = await ctx.db
+      .query("candidates")
+      .withIndex("by_run", (q) => q.eq("runId", args.runId))
+      .collect();
+    const generations = await ctx.db
+      .query("generations")
+      .withIndex("by_run", (q) => q.eq("runId", args.runId))
+      .collect();
+    for (const doc of [...candidates, ...generations]) await ctx.db.delete(doc._id);
+    await ctx.db.delete(args.runId);
+    return { generations: generations.length, candidates: candidates.length };
+  },
+});
+
 /**
  * Every run with just enough detail to choose one to pin: how many rounds, how
  * the best score moved from round 1 to the last, and the winning strategy.

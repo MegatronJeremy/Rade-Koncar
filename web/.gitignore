@@ -38,3 +38,8 @@ dist-ssr
 skills-lock.json
 /AGENTS.md
 /CLAUDE.md
+
+# Stray tsc output next to the Convex sources. Anchored to this directory only:
+# convex/_generated/*.js is committed on purpose, since the Render build imports
+# from it and never runs `npx convex dev`.
+/convex/*.js
