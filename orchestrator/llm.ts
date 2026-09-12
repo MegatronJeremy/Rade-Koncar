@@ -77,6 +77,8 @@ interface CliCall {
  * them. With the first and not the second the model is refused silently, burns
  * its turns and returns success, so both are set or neither is.
  */
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+
 async function cli(call: CliCall): Promise<unknown> {
   const bin = opt("CLAUDE_BINARY", "claude");
   const args = [
@@ -90,6 +92,27 @@ async function cli(call: CliCall): Promise<unknown> {
     "--disable-slash-commands",
     "--no-session-persistence",
   ];
+  // Latency here is thinking time, not output volume. Measured on the candle
+  // prompt, six candidates in one call: default 226s / $1.24, medium 83s /
+  // $0.46, low 38s / $0.30, all six compiling at every level. Three sequential
+  // generations make that 11 minutes a run against 4.
+  //
+  // Not low. At low the model stops animating: five of six came back below the
+  // motion threshold, and a static candidate is zeroed by the prefilter before
+  // it ever reaches the vision call, so a third of the rubric is thrown away.
+  // Set empty to fall back to the session default.
+  //
+  // Checked here because the CLI only warns on an unknown level and falls back
+  // to the default, on stderr, which we capture. A typo would cost 3x latency
+  // per call and nothing would say so.
+  const effort = opt("CLAUDE_CLI_EFFORT", "medium");
+  if (effort !== "") {
+    if (!EFFORTS.includes(effort)) {
+      throw new Error(`CLAUDE_CLI_EFFORT="${effort}" is not one of ${EFFORTS.join(", ")}`);
+    }
+    args.push("--effort", effort);
+  }
+
   if (call.tools && call.tools.length > 0) {
     const t = call.tools.join(",");
     args.push("--tools", t, "--allowedTools", t, "--permission-mode", "acceptEdits", "--max-turns", "6");
