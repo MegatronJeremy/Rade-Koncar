@@ -5,60 +5,109 @@
 <title>Shader Arena harness</title>
 <style>
   :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
   body {
     margin: 0; padding: 16px;
     background: #0d0f12; color: #d7dce2;
     font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start;
+    display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; align-items: start;
   }
-  h1 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: #8fa3b8; }
+  body.embed { padding: 0; gap: 12px; grid-template-columns: minmax(0, 1fr) 420px; }
+  body.embed .standalone-only { display: none; }
+
+  h1 { font-size: 12px; font-weight: 600; margin: 0 0 6px; color: #8fa3b8; letter-spacing: .02em; }
+  .muted { color: #6b7683; }
+
   textarea {
-    width: 100%; height: 62vh; box-sizing: border-box;
+    width: 100%; height: 60vh; min-height: 300px;
     background: #14171c; color: #d7dce2; border: 1px solid #262b33; border-radius: 4px;
-    padding: 10px; font: inherit; resize: vertical; tab-size: 4;
+    padding: 10px; font: inherit; resize: vertical; tab-size: 4; line-height: 1.45;
   }
-  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  textarea:focus { outline: none; border-color: #1f6feb; }
+
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 8px; }
+
   button {
     background: #1f6feb; color: #fff; border: 0; border-radius: 4px;
     padding: 6px 14px; font: inherit; cursor: pointer;
   }
   button.secondary { background: #262b33; color: #d7dce2; }
-  button:disabled { opacity: .5; cursor: default; }
-  canvas { width: 256px; height: 256px; display: block; background: #000; border: 1px solid #262b33; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.secondary:hover:not(:disabled) { background: #313845; }
+
+  .stage {
+    width: 100%; aspect-ratio: 1; max-width: 420px;
+    background: #000; border: 1px solid #262b33; border-radius: 4px; overflow: hidden;
+  }
+  /* Internal size stays 256x256: that is what the scorer sees and what
+     captureAt must hand back. Only the presentation is scaled up. */
+  canvas { width: 100%; height: 100%; display: block; }
+
+  input[type=range] { flex: 1; min-width: 80px; accent-color: #1f6feb; }
+  .t { font-variant-numeric: tabular-nums; color: #8fa3b8; min-width: 74px; }
+
   .frames { display: flex; gap: 8px; flex-wrap: wrap; }
   .frame { text-align: center; color: #7d8794; font-size: 11px; }
-  .frame img { width: 96px; height: 96px; display: block; border: 1px solid #262b33; background: #000; }
+  .frame img {
+    width: 84px; height: 84px; display: block; border: 1px solid #262b33;
+    background: #000; border-radius: 3px; cursor: pointer;
+  }
+  .frame img:hover { border-color: #1f6feb; }
+
   #log {
     white-space: pre-wrap; background: #14171c; border: 1px solid #262b33; border-radius: 4px;
-    padding: 8px; min-height: 40px; max-height: 30vh; overflow: auto; color: #9aa5b1;
+    padding: 8px; min-height: 38px; max-height: 26vh; overflow: auto; color: #9aa5b1;
+    font-size: 12px;
   }
-  #log.error { color: #ff7b72; border-color: #5d2a26; }
+  #log.error { color: #ff7b72; border-color: #5d2a26; background: #1a1214; }
   #log.ok { color: #7ee787; }
+  .dirty { color: #e3b341; }
 </style>
 </head>
 <body>
 
 <div>
-  <h1>candidate source: defines <code>void mainImage(out vec4 fragColor, in vec2 fragCoord)</code></h1>
+  <div class="row" style="justify-content: space-between; margin-bottom: 6px">
+    <h1 style="margin:0">candidate source: defines <code>void mainImage(out vec4 fragColor, in vec2 fragCoord)</code></h1>
+    <span id="dirty" class="dirty"></span>
+  </div>
   <textarea id="src" spellcheck="false"></textarea>
   <div class="row">
     <button id="run">Run</button>
-    <button id="load" class="secondary">Load fixtures/good.glsl</button>
-    <label class="row" style="margin:0; gap:4px">
-      <input type="checkbox" id="animate"> animate (preview only)
-    </label>
+    <button id="revert" class="secondary" disabled>Revert</button>
+    <button id="copy" class="secondary">Copy source</button>
+    <button id="load" class="secondary standalone-only">Load fixtures/good.glsl</button>
+    <span class="muted">ctrl+enter to run</span>
   </div>
 </div>
 
 <div>
-  <h1>t = <span id="tlabel">0.0</span></h1>
-  <canvas id="gl" width="256" height="256"></canvas>
-  <div class="row" style="margin-bottom:8px">
-    <input id="scrub" type="range" min="0" max="4" step="0.01" value="0" style="flex:1">
+  <h1>live</h1>
+  <div class="stage"><canvas id="gl" width="256" height="256"></canvas></div>
+
+  <div class="row">
+    <button id="play" class="secondary">Play</button>
+    <span id="tlabel" class="t">t = 0.00s</span>
+    <select id="speed" class="secondary" style="background:#262b33;color:#d7dce2;border:0;border-radius:4px;padding:6px">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+    </select>
   </div>
-  <h1>captured frames</h1>
+  <div class="row">
+    <input id="scrub" type="range" min="0" max="10" step="0.01" value="0">
+    <button id="rewind" class="secondary">t=0</button>
+  </div>
+
+  <div class="row" style="margin-top:14px; justify-content: space-between">
+    <h1 style="margin:0">scored frames <span class="muted">t = 0, 1, 2</span></h1>
+    <button id="export" class="secondary" disabled>Export PNGs</button>
+  </div>
   <div class="frames" id="frames"></div>
-  <h1>log</h1>
+
+  <h1 style="margin-top:14px">log</h1>
   <div id="log">idle</div>
 </div>
 
@@ -153,8 +202,8 @@ void main() {
     return { ok: true, log: "", ms: performance.now() - t0 };
   }
 
-  // One explicit draw at an explicit t. No animation loop, no wall clock: the same
-  // source must produce byte-identical frames on every machine and every run.
+  // One explicit draw at an explicit t. The scored frames never come off a
+  // clock: the same source must produce identical frames on every run.
   function renderAt(t) {
     if (!program) throw new Error("renderAt before a successful compile");
     gl.bindVertexArray(vao);
@@ -163,7 +212,7 @@ void main() {
     if (uTime) gl.uniform1f(uTime, t);
     if (uRes) gl.uniform3f(uRes, canvas.width, canvas.height, 1.0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    // finish() forces the hang to surface here rather than at an arbitrary later
+    // finish() forces a hang to surface here rather than at an arbitrary later
     // call, so the caller's timeout attributes it to the right frame.
     gl.finish();
   }
@@ -175,24 +224,43 @@ void main() {
     return { dataUrl, ms: performance.now() - t0 };
   }
 
+  // render.ts and batch.ts drive the page through exactly this and nothing else.
   window.harness = { ready: true, compile, renderAt, captureAt, canvas, gl };
 
-  // ---- standalone UI below; render.ts uses only window.harness ----
+  /* ---- everything below is the human-facing view. render.ts never touches it. ---- */
+
+  const params = new URLSearchParams(location.search);
+  const EMBED = params.has("embed");
+  if (EMBED) document.body.classList.add("embed");
 
   const srcEl = document.getElementById("src");
   const logEl = document.getElementById("log");
   const framesEl = document.getElementById("frames");
+  const dirtyEl = document.getElementById("dirty");
   const runBtn = document.getElementById("run");
+  const revertBtn = document.getElementById("revert");
+  const copyBtn = document.getElementById("copy");
   const loadBtn = document.getElementById("load");
+  const playBtn = document.getElementById("play");
+  const rewindBtn = document.getElementById("rewind");
+  const exportBtn = document.getElementById("export");
   const scrub = document.getElementById("scrub");
+  const speedEl = document.getElementById("speed");
   const tlabel = document.getElementById("tlabel");
-  const animateEl = document.getElementById("animate");
 
   const DEFAULT_SRC = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = fragCoord / iResolution.xy;
     vec3 col = 0.5 + 0.5 * cos(iTime + uv.xyx + vec3(0.0, 2.0, 4.0));
     fragColor = vec4(col, 1.0);
 }`;
+
+  let pristine = DEFAULT_SRC;
+  let captured = [];
+  let playing = false;
+  let raf = 0;
+  let clock = 0;
+  let last = 0;
+
   srcEl.value = DEFAULT_SRC;
 
   function say(text, cls) {
@@ -200,71 +268,148 @@ void main() {
     logEl.className = cls || "";
   }
 
-  function run() {
+  function post(msg) {
+    if (window.parent !== window) window.parent.postMessage(msg, "*");
+  }
+
+  function markDirty() {
+    const dirty = srcEl.value !== pristine;
+    dirtyEl.textContent = dirty ? "edited" : "";
+    revertBtn.disabled = !dirty;
+  }
+
+  function setTime(t) {
+    clock = t;
+    scrub.value = String(t);
+    tlabel.textContent = `t = ${t.toFixed(2)}s`;
+    if (program) renderAt(t);
+  }
+
+  function stop() {
+    playing = false;
+    cancelAnimationFrame(raf);
+    raf = 0;
+    playBtn.textContent = "Play";
+  }
+
+  function start() {
+    if (playing || !program) return;
+    playing = true;
+    playBtn.textContent = "Pause";
+    last = performance.now();
+    const tick = () => {
+      if (!playing) return;
+      const now = performance.now();
+      const dt = ((now - last) / 1000) * Number(speedEl.value);
+      last = now;
+      setTime((clock + dt) % Number(scrub.max));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  // Returns true when the source compiled. Captures the three scored frames
+  // every time, so what is shown is always what the scorer would see.
+  function run(autoplay) {
+    const wasPlaying = playing;
+    stop();
     framesEl.innerHTML = "";
+    captured = [];
+    exportBtn.disabled = true;
+
     const c = compile(srcEl.value);
-    if (!c.ok) { say(c.log, "error"); return; }
+    if (!c.ok) {
+      say(c.log, "error");
+      post({ type: "harness:status", status: "compile_error", log: c.log });
+      return false;
+    }
 
     const lines = [`compile ok in ${c.ms.toFixed(1)} ms`];
     for (const t of [0, 1, 2]) {
       const f = captureAt(t);
+      captured.push({ t, dataUrl: f.dataUrl });
       lines.push(`t${t}  ${f.ms.toFixed(1)} ms`);
+
       const wrap = document.createElement("div");
       wrap.className = "frame";
       const img = new Image();
       img.src = f.dataUrl;
+      img.title = `jump to t = ${t}`;
+      img.addEventListener("click", () => { stop(); setTime(t); });
       const cap = document.createElement("div");
       cap.textContent = `t${t}`;
       wrap.append(img, cap);
       framesEl.append(wrap);
     }
-    renderAt(parseFloat(scrub.value));
+
+    exportBtn.disabled = false;
+    setTime(clock);
     say(lines.join("\n"), "ok");
+    post({ type: "harness:status", status: "ok", ms: c.ms });
+
+    if (autoplay ?? wasPlaying) start();
+    return true;
   }
 
-  function preview() {
-    if (!program) return;
-    const t = parseFloat(scrub.value);
-    tlabel.textContent = t.toFixed(2);
-    renderAt(t);
+  function setSource(source, autoplay) {
+    srcEl.value = source;
+    pristine = source;
+    markDirty();
+    clock = 0;
+    run(autoplay);
   }
 
-  runBtn.addEventListener("click", run);
-  scrub.addEventListener("input", () => {
-    if (animateEl.checked) { animateEl.checked = false; animateEl.dispatchEvent(new Event("change")); }
-    preview();
+  runBtn.addEventListener("click", () => run(true));
+  revertBtn.addEventListener("click", () => { srcEl.value = pristine; markDirty(); run(true); });
+  srcEl.addEventListener("input", markDirty);
+  srcEl.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(true); }
+  });
+
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(srcEl.value).then(() => {
+      copyBtn.textContent = "Copied";
+      setTimeout(() => { copyBtn.textContent = "Copy source"; }, 1200);
+    }, () => say("clipboard blocked by the browser", "error"));
+  });
+
+  playBtn.addEventListener("click", () => (playing ? stop() : start()));
+  rewindBtn.addEventListener("click", () => { setTime(0); });
+  scrub.addEventListener("input", () => { stop(); setTime(parseFloat(scrub.value)); });
+
+  exportBtn.addEventListener("click", () => {
+    for (const { t, dataUrl } of captured) {
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `t${t}.png`;
+      a.click();
+    }
   });
 
   loadBtn.addEventListener("click", async () => {
     try {
       const r = await fetch("fixtures/good.glsl");
-      if (!r.ok) throw new Error(`${r.status}`);
-      srcEl.value = await r.text();
-      run();
+      if (!r.ok) throw new Error(String(r.status));
+      setSource(await r.text(), true);
     } catch (e) {
       say("could not fetch fixtures/good.glsl (serve this page over http, not file://): " + e.message, "error");
     }
   });
 
-  // The preview loop only exists while the box is ticked. render.ts drives this
-  // same page, and a background rAF interleaving draws with its captures would
-  // make the frames depend on wall clock.
-  let raf = 0;
-  let start = 0;
-  function tick() {
-    if (!program) { raf = requestAnimationFrame(tick); return; }
-    const t = ((performance.now() - start) / 1000) % 4;
-    scrub.value = String(t);
-    tlabel.textContent = t.toFixed(2);
-    renderAt(t);
-    raf = requestAnimationFrame(tick);
-  }
-  animateEl.addEventListener("change", () => {
-    if (animateEl.checked) { start = performance.now(); raf = requestAnimationFrame(tick); }
-    else { cancelAnimationFrame(raf); raf = 0; }
+  // Embedding contract, used by the winner view in web/:
+  //   parent -> iframe  { type: "harness:source", source, autoplay }
+  //   iframe -> parent  { type: "harness:ready" }
+  //                     { type: "harness:status", status, log?, ms? }
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d || d.type !== "harness:source" || typeof d.source !== "string") return;
+    setSource(d.source, d.autoplay !== false);
   });
 
-  run();
+  // Paused by default. render.ts loads this page and an animation loop running
+  // under it would burn SwiftShader cycles in the sandbox for nothing.
+  run(params.has("live"));
+  post({ type: "harness:ready" });
 })();
 </script>
 </body>

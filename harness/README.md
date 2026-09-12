@@ -83,9 +83,42 @@ fallback and every frame comes back blank, which reads as a broken shader.
 
 ## harness.html
 
-A standalone page: paste a candidate into the textarea, press Run, get three captured
-frames and the compiler log. Serve it over http (the fixture loader uses `fetch`, which
-file:// blocks):
+The winner view and the renderer, in one file. Source on the left, a live canvas on the
+right, the three scored frames underneath.
+
+- Edit and press Run, or ctrl+enter. `Revert` restores the source it was given and the
+  header shows `edited` until then.
+- Play, pause, scrub, and 0.25x to 2x. Clicking a scored frame jumps the clock to it.
+- `Export PNGs` downloads the three frames. `Copy source` takes the text.
+
+The canvas is 256x256 internally whatever size it is displayed at, because that is what
+`captureAt` hands back and what the scorer sees.
+
+**It does not autoplay by default.** `render.ts` loads this page, and an animation loop
+running underneath it would burn SwiftShader cycles in a sandbox for nothing. Pass
+`?live=1` to autoplay; pressing Run also starts playback.
+
+### Embedding it
+
+`?embed=1` drops the padding and the standalone-only controls. Source goes in by
+`postMessage`, so the parent needs no access to the iframe's document:
+
+```js
+iframe.contentWindow.postMessage({ type: "harness:source", source, autoplay: true }, "*");
+```
+
+Back out, on the parent's `message` event:
+
+```js
+{ type: "harness:ready" }
+{ type: "harness:status", status: "ok", ms }
+{ type: "harness:status", status: "compile_error", log }
+```
+
+Verified: default load does not autoplay, `?live=1` advances the clock, canvas pixels
+change while playing, and a source pushed by `postMessage` compiles and renders.
+
+Serve it over http (the fixture loader uses `fetch`, which file:// blocks):
 
 ```bash
 python -m http.server 5199 --directory harness
