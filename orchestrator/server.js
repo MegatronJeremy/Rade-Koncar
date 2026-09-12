@@ -35,7 +35,10 @@ let inFlight;
             .end(JSON.stringify({ ok: true, busy: inFlight !== undefined, running: inFlight ?? null }));
         return;
     }
-    if (req.method !== "POST" || req.url !== "/run") {
+    const isRun = req.method === "POST" && req.url === "/run";
+    const isContinue = req.method === "POST" && req.url === "/continue";
+    const isStop = req.method === "POST" && req.url === "/stop";
+    if (!isRun && !isContinue && !isStop) {
         res.writeHead(404, CORS).end();
         return;
     }
@@ -44,14 +47,33 @@ let inFlight;
     req.on("end", () => {
         let prompt = "";
         let steering;
+        let runId;
         try {
-            ({ prompt, steering } = JSON.parse(body || "{}"));
+            ({ prompt, steering, runId } = JSON.parse(body || "{}"));
         }
         catch {
             res.writeHead(400, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ error: "bad json" }));
             return;
         }
-        if (!prompt) {
+        /*
+         * Stopping is answered immediately: the loop notices the flag before the
+         * next candidate renders. Knowing the run id is the permission, and a
+         * browser only ever knows its own.
+         */
+        if (isStop) {
+            if (runId === undefined) {
+                res.writeHead(400, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ error: "runId required" }));
+                return;
+            }
+            (0, loop_1.requestStop)(runId);
+            res.writeHead(202, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ stopping: true }));
+            return;
+        }
+        if (isContinue && runId === undefined) {
+            res.writeHead(400, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ error: "runId required" }));
+            return;
+        }
+        if (isRun && !prompt) {
             res.writeHead(400, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ error: "prompt required" }));
             return;
         }
@@ -61,7 +83,7 @@ let inFlight;
                 .end(JSON.stringify({ error: "busy", busy: true, running: inFlight }));
             return;
         }
-        inFlight = prompt;
+        inFlight = prompt || (runId ?? "a run");
         /*
          * The id goes back to whoever asked, so the page can follow its own run and
          * nobody else's. Without it every visitor was shown whichever run happened
@@ -70,8 +92,14 @@ let inFlight;
          * Resolved on failure too: a run that dies before createRun must answer the
          * request rather than leave it hanging.
          */
+        /*
+         * One round per request. A round is about two and a half minutes against
+         * seven for a whole run, so results arrive sooner, sandboxes are released
+         * between rounds instead of held throughout, and whether to keep going is
+         * the visitor's call rather than a constant.
+         */
         const created = new Promise((resolve) => {
-            (0, loop_1.runOnce)(prompt, resolve)
+            (0, loop_1.runOnce)(prompt, resolve, { rounds: 1, resume: isContinue ? runId : undefined })
                 .catch((err) => {
                 process.stderr.write(`[run] ${String(err)}\n`);
                 resolve(undefined);

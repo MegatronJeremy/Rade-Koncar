@@ -11,10 +11,13 @@ interface PanelProps {
   readonly ids: readonly string[];
   readonly selectedId: string | undefined;
   readonly onPick: (runId: string) => void;
+  readonly onContinue: (runId: string) => void;
+  readonly onStop: (runId: string) => void;
+  readonly blocked: boolean;
   readonly onLoaded: (runs: readonly Run[]) => void;
 }
 
-const Inner = ({ hidden, ids, selectedId, onPick, onLoaded }: PanelProps): React.JSX.Element | null => {
+const Inner = ({ hidden, ids, selectedId, onPick, onContinue, onStop, blocked, onLoaded }: PanelProps): React.JSX.Element | null => {
   const runs = useQuery(api.runs.runsByIds, ids.length === 0 ? "skip" : { ids: [...ids] });
   const mine = (runs ?? []) as readonly Run[];
 
@@ -27,7 +30,16 @@ const Inner = ({ hidden, ids, selectedId, onPick, onLoaded }: PanelProps): React
   }, [key]);
 
   if (hidden === true) return null;
-  return <YourRuns runs={mine} selectedId={selectedId} onPick={onPick} />;
+  return (
+    <YourRuns
+      runs={mine}
+      selectedId={selectedId}
+      onPick={onPick}
+      onContinue={onContinue}
+      onStop={onStop}
+      blocked={blocked}
+    />
+  );
 };
 
 export const YourRunsPanel = (props: PanelProps): React.JSX.Element => (

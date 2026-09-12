@@ -62,6 +62,33 @@ export const setCandidateScores = (candidateId: CandidateId, scores: Scores, cri
 export const markSurvivors = (candidateIds: CandidateId[]) =>
   convex.mutation(api.candidates.markSurvivors, { candidateIds: candidateIds });
 
+/** One candidate as Convex hands it back, for resuming a run. */
+export interface StoredCandidate {
+  id: string;
+  index: number;
+  strategy: string;
+  source: string;
+  status: string;
+  scores?: { flat: boolean; motion: number; palette: number; subject: number; total: number };
+  critique?: string;
+  survived: boolean;
+}
+
+export interface StoredRun {
+  id: string;
+  prompt: string;
+  status: string;
+  generations: { index: number; candidates: StoredCandidate[] }[];
+}
+
+/**
+ * Read a run back. A round picked up later rebuilds its parents from here
+ * rather than from memory: sources, critiques, scores and the survived flags
+ * are all already stored, so nothing has to be held between requests.
+ */
+export const getRun = async (runId: RunId): Promise<StoredRun | null> =>
+  (await convex.query(api.runs.runWithCandidates, { runId })) as StoredRun | null;
+
 /** Frames are files. Never base64 a PNG into a document. */
 export async function uploadFrames(candidateId: CandidateId, png: Buffer[]): Promise<void> {
   const frameIds: string[] = [];

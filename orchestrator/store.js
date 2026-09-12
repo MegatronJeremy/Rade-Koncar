@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.markSurvivors = exports.setCandidateScores = exports.setCandidateStatus = exports.createCandidate = exports.setGenerationStatus = exports.createGeneration = exports.pinRun = exports.setRunStatus = exports.createRun = void 0;
+exports.getRun = exports.markSurvivors = exports.setCandidateScores = exports.setCandidateStatus = exports.createCandidate = exports.setGenerationStatus = exports.createGeneration = exports.pinRun = exports.setRunStatus = exports.createRun = void 0;
 exports.uploadFrames = uploadFrames;
 const browser_1 = require("convex/browser");
 const server_1 = require("convex/server");
@@ -44,6 +44,13 @@ const setCandidateScores = (candidateId, scores, critique) => convex.mutation(ap
 exports.setCandidateScores = setCandidateScores;
 const markSurvivors = (candidateIds) => convex.mutation(api.candidates.markSurvivors, { candidateIds: candidateIds });
 exports.markSurvivors = markSurvivors;
+/**
+ * Read a run back. A round picked up later rebuilds its parents from here
+ * rather than from memory: sources, critiques, scores and the survived flags
+ * are all already stored, so nothing has to be held between requests.
+ */
+const getRun = async (runId) => (await convex.query(api.runs.runWithCandidates, { runId }));
+exports.getRun = getRun;
 /** Frames are files. Never base64 a PNG into a document. */
 async function uploadFrames(candidateId, png) {
     const frameIds = [];

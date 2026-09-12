@@ -20,8 +20,8 @@ export const Hero = ({ state, running, submit, onBrowseSamples }: HeroProps): Re
     <PromptBox state={state} running={running} submit={submit} />
     <p className="how">
       Six shaders get written, each renders in its own sandbox, and a model scores what they
-      actually drew. The best two are rewritten with the criticism. Three rounds, about seven
-      minutes.
+      actually drew. About two and a half minutes for a round. Then you decide whether the best
+      two get rewritten with the criticism, and go again.
     </p>
     {state === "up" || state === "probing" ? null : (
       <p className="how">

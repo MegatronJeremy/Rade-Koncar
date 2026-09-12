@@ -1217,3 +1217,42 @@ body {
 .yours-when {
   font-variant-numeric: tabular-nums;
 }
+
+.yours-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.yours-item .yours-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.yours-act {
+  flex: none;
+  padding: 0 13px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.yours-act:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+.yours-act.is-go:hover:not(:disabled) {
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.yours-act:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

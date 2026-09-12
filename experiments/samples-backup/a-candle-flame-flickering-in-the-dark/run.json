@@ -1,0 +1,405 @@
+{
+  "prompt": "a candle flame flickering in the dark",
+  "mode": "text",
+  "status": "done",
+  "pinned": true,
+  "createdAt": 1789213849495,
+  "generations": [
+    {
+      "index": 1,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "sdf flame teardrop",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float t = iTime;\n    float flick = fbm(vec2(t * 1.7, 0.0));\n    vec2 p = uv;\n    p.x -= 0.03 * sin(t * 5.0 + flick * 6.0);\n    p.y -= flick * 0.04;\n\n    float taper = clamp(1.0 - p.y * 1.4, 0.0, 1.0);\n    float width = 0.16 * taper * taper + 0.015;\n    float wobble = 0.05 * sin(p.y * 9.0 + t * 6.0) * taper;\n    float d = abs(p.x + wobble) - width;\n    d = max(d, p.y - 0.55);\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6;\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 7,
+            "subject": 5,
+            "total": 15
+          },
+          "critique": "Flame shape barely deforms between frames; add turbulent flicker to height/width and a visible wick.",
+          "survived": true,
+          "frames": [
+            "1-0-t0.png",
+            "1-0-t1.png",
+            "1-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "raymarched volumetric flame",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 ro = vec3(0.0, -0.1, -1.6);\n    vec3 rd = normalize(vec3(uv, 1.3));\n\n    vec3 col = vec3(0.0);\n    float t = 0.0;\n    float dt = 0.045;\n\n    for (int i = 0; i < 40; i++) {\n        vec3 pos = ro + rd * t;\n        float height = pos.y + 0.35;\n        float radius = length(pos.xz);\n        float taper = clamp(1.0 - height * 1.3, 0.0, 1.0);\n        float shapeD = radius - (0.16 * taper * taper + 0.01);\n        float n = fbm(pos.xy * 3.0 + vec2(1.3 * pos.z, -iTime * 1.6));\n        float band = step(-0.4, height) * step(height, 0.55);\n        float density = smoothstep(0.06, -0.06, shapeD) * clamp(taper * 1.2 + n * 0.4 - 0.15, 0.0, 1.0) * band;\n\n        vec3 c = palette(clamp(height + 0.3, 0.0, 1.0),\n                          vec3(0.5, 0.25, 0.1),\n                          vec3(0.5, 0.3, 0.2),\n                          vec3(1.0, 0.6, 0.3),\n                          vec3(0.0, 0.05, 0.12));\n\n        col += c * density * 0.09;\n        t += dt;\n    }\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 4,
+            "subject": 5,
+            "total": 9
+          },
+          "critique": "Flame shape is static and frozen; add flicker/turbulence to silhouette and motion over time, and remove odd teal band.",
+          "survived": false,
+          "frames": [
+            "1-1-t0.png",
+            "1-1-t1.png",
+            "1-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "fbm domain warp flame",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = uv;\n    p.y += 0.32;\n\n    vec2 warp1 = vec2(\n        fbm(p * 3.0 + vec2(0.0, iTime * 1.3)),\n        fbm(p * 3.0 + vec2(5.2, -iTime * 1.1))\n    );\n    vec2 warp2 = vec2(\n        fbm(p * 4.0 + 3.5 * warp1 + vec2(1.7, iTime * 0.9)),\n        fbm(p * 4.0 + 3.5 * warp1 + vec2(8.3, -iTime * 0.9))\n    );\n    float n = fbm(p * 2.2 + 3.0 * warp2);\n\n    float taper = clamp(1.0 - p.y * 1.3, 0.0, 1.0);\n    float shape = smoothstep(0.34 * taper + 0.02, 0.0, abs(p.x + (warp2.x - 0.5) * 0.08 * taper));\n    shape *= smoothstep(-0.08, 0.1, p.y);\n    shape *= smoothstep(0.6, 0.1, p.y);\n\n    vec3 col = palette(n, vec3(0.5, 0.2, 0.1), vec3(0.5, 0.3, 0.2), vec3(1.0, 0.8, 0.4), vec3(0.0, 0.1, 0.2));\n    col *= shape * (0.5 + 0.6 * n);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": true,
+            "motion": 0,
+            "palette": 0,
+            "subject": 0,
+            "total": 0
+          },
+          "critique": "renders flat",
+          "survived": false,
+          "frames": [
+            "1-2-t0.png",
+            "1-2-t1.png",
+            "1-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "radial sdf flame petals",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.22;\n\n    float r = length(uv);\n    float a = atan(uv.x, uv.y + 0.0001);\n\n    float petal = pow(clamp(cos(a * 0.5), 0.0, 1.0), 3.0);\n    float flick = fbm(vec2(a * 2.5 + 10.0, iTime * 2.2));\n    float rad = petal * (0.32 + 0.05 * sin(iTime * 5.0 + a * 4.0)) + 0.015;\n    rad *= (0.8 + 0.35 * flick);\n\n    float d = r - rad;\n    float glow = exp(-max(d, 0.0) * 14.0);\n    float core = exp(-abs(d) * 32.0);\n\n    vec3 col = palette(clamp(r * 2.2, 0.0, 1.0),\n                        vec3(0.6, 0.3, 0.1),\n                        vec3(0.4, 0.3, 0.2),\n                        vec3(1.0, 0.7, 0.3),\n                        vec3(0.0, 0.15, 0.2)) * glow;\n    col += vec3(1.0, 0.95, 0.7) * core * 0.5;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 8,
+            "subject": 5,
+            "total": 20
+          },
+          "critique": "Blob shape lacks teardrop taper and wick; needs a narrower rising tip to read as flame.",
+          "survived": true,
+          "frames": [
+            "1-3-t0.png",
+            "1-3-t1.png",
+            "1-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "layered noise turbulence",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.3;\n\n    float mask = smoothstep(0.4, 0.0, abs(uv.x) * (1.0 + max(uv.y, 0.0) * 1.6));\n    mask *= smoothstep(-0.06, 0.14, uv.y);\n    mask *= smoothstep(0.55, 0.15, uv.y);\n\n    vec3 col = vec3(0.0);\n    for (int i = 0; i < 4; i++) {\n        float fi = float(i);\n        vec2 q = uv * (2.0 + fi) + vec2(0.0, -iTime * (1.0 + fi * 0.4));\n        float n = fbm(q);\n        float layerMask = mask * (1.0 - fi * 0.18);\n        vec3 c = palette(clamp(n * 0.5 + 0.5 - fi * 0.15, 0.0, 1.0),\n                          vec3(0.5, 0.25, 0.1),\n                          vec3(0.5, 0.3, 0.2),\n                          vec3(1.0, 0.7, 0.4),\n                          vec3(0.0, 0.05 + 0.04 * fi, 0.2));\n        col += c * n * layerMask * 0.45;\n    }\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": true,
+            "motion": 0,
+            "palette": 0,
+            "subject": 0,
+            "total": 0
+          },
+          "critique": "renders flat",
+          "survived": false,
+          "frames": [
+            "1-4-t0.png",
+            "1-4-t1.png",
+            "1-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "feedback trail accumulation",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat flameField(vec2 p, float t) {\n    float taper = clamp(1.0 - p.y * 1.4, 0.0, 1.0);\n    float flick = fbm(vec2(t * 3.0, p.y * 2.0 + 7.0));\n    float width = 0.15 * taper * taper + 0.015 + 0.05 * flick * taper;\n    float d = abs(p.x) - width;\n    d = max(d, p.y - 0.5);\n    d = max(d, -p.y - 0.05);\n    return exp(-max(d, 0.0) * 25.0);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.25;\n\n    vec3 col = vec3(0.0);\n    for (int i = 0; i < 8; i++) {\n        float fi = float(i);\n        float w = exp(-fi * 0.4);\n        float tOff = iTime - fi * 0.03;\n        vec2 p = uv;\n        p.y -= fi * 0.012;\n        p.x += 0.01 * sin(fi * 2.1 + iTime);\n        float f = flameField(p, tOff);\n        vec3 c = palette(clamp(p.y + 0.3, 0.0, 1.0),\n                          vec3(0.6, 0.3, 0.1),\n                          vec3(0.4, 0.3, 0.2),\n                          vec3(1.0, 0.7, 0.3),\n                          vec3(0.0, 0.1, 0.2));\n        col += c * f * w * 0.35;\n    }\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 6,
+            "subject": 6,
+            "total": 12
+          },
+          "critique": "Frames are static; add flicker/jitter to flame shape and brighter yellow-white core for heat.",
+          "survived": false,
+          "frames": [
+            "1-5-t0.png",
+            "1-5-t1.png",
+            "1-5-t2.png"
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "teardrop taper + wick",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.30;\n\n    vec2 p = uv;\n    float flick = fbm(vec2(p.y * 2.0 + 4.0, iTime * 2.3));\n    p.x -= 0.05 * sin(iTime * 4.0 + p.y * 5.0) * clamp(p.y, 0.0, 1.0);\n\n    float totalH = 0.62 + 0.06 * flick;\n    float u = clamp(p.y / totalH, 0.0, 1.0);\n\n    float belly = smoothstep(0.0, 0.22, u) * (1.0 - smoothstep(0.22, 1.0, u));\n    float width = mix(0.045, 0.22, belly) * pow(1.0 - u, 1.1);\n    width *= (0.8 + 0.35 * flick);\n    width = max(width, 0.006);\n\n    float d = abs(p.x) - width;\n    d = max(d, p.y - totalH);\n    d = max(d, -p.y - 0.04);\n\n    float glow = exp(-max(d, 0.0) * 16.0);\n    float core = exp(-abs(d) * 42.0);\n\n    vec3 flameCol = palette(u,\n                        vec3(0.6, 0.25, 0.05),\n                        vec3(0.4, 0.3, 0.2),\n                        vec3(1.0, 0.7, 0.35),\n                        vec3(0.0, 0.12, 0.22));\n\n    vec3 col = flameCol * glow;\n    col += vec3(1.0, 0.95, 0.7) * core * 0.55;\n\n    float wick = max(abs(p.x) - 0.014, abs(p.y + 0.06) - 0.07);\n    float wickMask = smoothstep(0.012, -0.004, wick);\n    col = mix(col, vec3(0.06, 0.05, 0.05), wickMask);\n\n    float vign = clamp(1.0 - length(uv) * 0.55, 0.0, 1.0);\n    col += vec3(0.01, 0.007, 0.015) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 2,
+            "palette": 8,
+            "subject": 7,
+            "total": 17
+          },
+          "critique": "Flame shape and wick are convincing but nearly static; add flicker in height, tilt and edge turbulence over time.",
+          "survived": false,
+          "frames": [
+            "2-0-t0.png",
+            "2-0-t1.png",
+            "2-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "polar tip pinch + wick",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.24;\n\n    float r = length(uv);\n    float a = atan(uv.x, uv.y + 0.0001);\n\n    float flick = fbm(vec2(a * 2.0 + 8.0, iTime * 2.0));\n    float tip = smoothstep(-0.05, 0.55, uv.y);\n    float petal = pow(clamp(cos(a * 0.5), 0.0, 1.0), 1.6);\n    float baseWidth = mix(0.34, 0.05, tip);\n    float rad = petal * baseWidth * (0.85 + 0.3 * flick) + 0.012 * (1.0 - tip);\n\n    float d = r - rad;\n    d = max(d, uv.y - 0.62);\n    float glow = exp(-max(d, 0.0) * 15.0);\n    float core = exp(-abs(d) * 34.0);\n\n    vec3 col = palette(clamp(uv.y * 1.6 + 0.4, 0.0, 1.0),\n                        vec3(0.6, 0.3, 0.1),\n                        vec3(0.4, 0.3, 0.2),\n                        vec3(1.0, 0.7, 0.3),\n                        vec3(0.0, 0.15, 0.2)) * glow;\n    col += vec3(1.0, 0.95, 0.7) * core * 0.5;\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y + 0.05) - 0.065);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.05, 0.05, 0.05), wickMask);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 7,
+            "subject": 3,
+            "total": 10
+          },
+          "critique": "Shape reads as a static blob/mushroom, not a tapered flickering flame; add vertical taper and flicker motion.",
+          "survived": false,
+          "frames": [
+            "2-1-t0.png",
+            "2-1-t1.png",
+            "2-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "multi-octave turbulent flicker",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float t = iTime;\n    float flickA = fbm(vec2(t * 1.8, 0.0));\n    float flickB = fbm(vec2(t * 3.1 + 5.0, 1.0));\n    float flickC = fbm(vec2(uv.y * 3.0 + t * 2.4, 2.0));\n\n    vec2 p = uv;\n    p.x -= (0.05 * sin(t * 5.0 + flickA * 7.0) + 0.03 * (flickB - 0.5));\n    p.y -= 0.05 * (flickA - 0.5) + 0.02 * sin(t * 3.3);\n\n    float heightVar = 1.3 + 0.35 * (flickB - 0.5) + 0.15 * sin(t * 4.1);\n    float taper = clamp(1.0 - p.y * heightVar, 0.0, 1.0);\n    float widthVar = 0.16 + 0.05 * (flickC - 0.5) + 0.02 * sin(t * 6.7 + p.y * 8.0);\n    float width = widthVar * taper * taper + 0.015;\n    float wobble = (0.06 + 0.03 * flickC) * sin(p.y * 9.0 + t * 6.0 + flickA * 4.0) * taper;\n    float d = abs(p.x + wobble) - width;\n    d = max(d, p.y - (0.5 + 0.08 * flickB));\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6;\n\n    float wickD = max(abs(uv.x) - 0.013, abs(uv.y + 0.09) - 0.09);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.04, 0.04, 0.04), wickMask);\n    float emberD = length(uv - vec2(0.0, -0.005));\n    col += vec3(1.0, 0.5, 0.15) * exp(-emberD * 60.0) * 0.5;\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 4,
+            "palette": 7,
+            "subject": 7,
+            "total": 18
+          },
+          "critique": "Shape barely flickers/deforms frame to frame; add irregular wavering, turbulence, and brightness variation.",
+          "survived": true,
+          "frames": [
+            "2-2-t0.png",
+            "2-2-t1.png",
+            "2-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "domain-warped turbulence + wax",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float t = iTime;\n    vec2 warp = vec2(fbm(uv * 2.0 + vec2(0.0, t * 1.5)), fbm(uv * 2.0 + vec2(5.0, t * 1.3)));\n    float turb = fbm(uv * 3.0 + warp * 1.5 + vec2(0.0, t * 2.0));\n\n    vec2 p = uv;\n    p.x -= 0.07 * (turb - 0.5) * (1.0 + 2.0 * clamp(p.y, 0.0, 1.0));\n    p.y -= 0.03 * (warp.y - 0.5);\n\n    float taper = clamp(1.0 - p.y * (1.3 + 0.4 * (turb - 0.5)), 0.0, 1.0);\n    float width = (0.15 + 0.08 * (warp.x - 0.5)) * taper * taper + 0.014;\n    float d = abs(p.x) - width;\n    d = max(d, p.y - (0.56 + 0.1 * (turb - 0.5)));\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6;\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y + 0.10) - 0.10);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.05, 0.045, 0.04), wickMask);\n\n    float waxD = max(abs(uv.x) - 0.32, abs(uv.y + 0.22) - 0.05);\n    float waxMask = smoothstep(0.01, -0.005, waxD);\n    col = mix(col, vec3(0.5, 0.45, 0.35), waxMask * 0.4);\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 8,
+            "subject": 9,
+            "total": 23
+          },
+          "critique": "Good flame shape and glow, but edges only wobble slightly—add more erratic flicker/height variation.",
+          "survived": true,
+          "frames": [
+            "2-3-t0.png",
+            "2-3-t1.png",
+            "2-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "raymarched volume slices",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.15;\n\n    vec3 col = vec3(0.0);\n    float trans = 1.0;\n    const int STEPS = 32;\n    float dy = 0.85 / float(STEPS);\n    for (int i = 0; i < STEPS; i++) {\n        float fi = float(i) / float(STEPS);\n        float layerY = fi * 0.85 - 0.05;\n        float shrink = pow(1.0 - fi, 0.8);\n        float sway = 0.05 * sin(iTime * 3.2 + fi * 5.0) * fi;\n        float n = fbm(vec2(fi * 5.0, iTime * 2.2 + fi * 3.0));\n        float radius = (0.15 * shrink + 0.01) * (0.75 + 0.5 * n);\n        float bandMask = smoothstep(dy, 0.0, abs(uv.y - layerY));\n        float xMask = smoothstep(radius, radius * 0.4, abs(uv.x - sway));\n        float density = bandMask * xMask;\n        vec3 layerCol = mix(vec3(1.0, 0.85, 0.3), vec3(0.95, 0.2, 0.05), fi);\n        col += trans * density * layerCol * 1.1;\n        trans *= (1.0 - density * 0.5);\n    }\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y + 0.06) - 0.07);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.04), wickMask);\n\n    float vign = clamp(1.0 - length(uv) * 0.55, 0.0, 1.0);\n    col += vec3(0.01, 0.007, 0.015) * vign * 0.5;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 8,
+            "subject": 7,
+            "total": 15
+          },
+          "critique": "Flame shape barely sways/flickers frame to frame; add more turbulent wavering and brightness variation.",
+          "survived": false,
+          "frames": [
+            "2-4-t0.png",
+            "2-4-t1.png",
+            "2-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "voronoi ember flame",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec2 hash22(vec2 p) {\n    float a = hash21(p);\n    float b = hash21(p + vec2(17.7, 9.3));\n    return vec2(a, b);\n}\n\nfloat voronoi(vec2 p) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minD = 1.5;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 cellOff = vec2(float(x), float(y));\n            vec2 pt = cellOff + hash22(ip + cellOff);\n            float dd = length(pt - fp);\n            minD = min(minD, dd);\n        }\n    }\n    return minD;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float u = clamp(uv.y / 0.6, 0.0, 1.0);\n    float shapeWidth = mix(0.22, 0.0, pow(u, 0.9));\n    float baseMask = smoothstep(shapeWidth + 0.02, shapeWidth - 0.03, abs(uv.x)) * smoothstep(-0.05, 0.0, uv.y) * smoothstep(0.62, 0.5, uv.y);\n\n    vec2 vp = vec2(uv.x * 6.0, uv.y * 6.0 - iTime * 3.0);\n    float cell = voronoi(vp);\n    float turb = 1.0 - smoothstep(0.0, 0.55, cell);\n\n    float body = baseMask * (0.5 + 0.6 * turb);\n    float d = shapeWidth - abs(uv.x);\n    float glow = exp(-max(-d, 0.0) * 14.0) * smoothstep(-0.06, 0.6, uv.y) * smoothstep(0.65, 0.45, uv.y);\n\n    vec3 col = palette(u, vec3(0.6, 0.25, 0.05), vec3(0.4, 0.3, 0.2), vec3(1.0, 0.7, 0.3), vec3(0.0, 0.12, 0.2)) * (body + glow * 0.4);\n\n    const int N = 12;\n    for (int i = 0; i < N; i++) {\n        float fi = float(i);\n        vec2 seed = vec2(fi * 12.9, fi * 3.7);\n        float rise = fract(hash21(seed) + iTime * 0.25 + fi * 0.083);\n        float ex = (hash21(seed + 1.0) - 0.5) * 0.18 * (0.4 + rise);\n        vec2 emberPos = vec2(ex, rise * 0.75 - 0.05);\n        float ed = length(uv - emberPos);\n        float fade = (1.0 - rise) * 0.8;\n        col += vec3(1.0, 0.5, 0.15) * exp(-ed * 140.0) * fade;\n    }\n\n    float wickD = max(abs(uv.x) - 0.013, abs(uv.y + 0.06) - 0.07);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.05), wickMask);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 7,
+            "subject": 4,
+            "total": 11
+          },
+          "critique": "Shape is a rigid triangle, not an organic flame; add wavering, tapering silhouette motion.",
+          "survived": false,
+          "frames": [
+            "2-5-t0.png",
+            "2-5-t1.png",
+            "2-5-t2.png"
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "erratic gust flicker",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float t = iTime;\n    vec2 warp = vec2(fbm(uv * 2.0 + vec2(0.0, t * 1.5)), fbm(uv * 2.0 + vec2(5.0, t * 1.3)));\n    float turb = fbm(uv * 3.0 + warp * 1.5 + vec2(0.0, t * 2.0));\n\n    float jitter = fbm(vec2(t * 6.5, 3.0)) - 0.5;\n    float gust = fbm(vec2(t * 0.9 + 11.0, 7.0));\n    float gustPulse = pow(gust, 2.0) * 1.8;\n\n    vec2 p = uv;\n    p.x -= 0.07 * (turb - 0.5) * (1.0 + 2.0 * clamp(p.y, 0.0, 1.0));\n    p.x -= 0.06 * jitter * (0.4 + clamp(p.y, 0.0, 1.0));\n    p.y -= 0.03 * (warp.y - 0.5);\n\n    float heightVar = 1.3 + 0.4 * (turb - 0.5) + 0.5 * gustPulse * sign(gust - 0.4);\n    float taper = clamp(1.0 - p.y * heightVar, 0.0, 1.0);\n    float width = (0.15 + 0.09 * (warp.x - 0.5) + 0.04 * jitter) * taper * taper + 0.014;\n    float d = abs(p.x) - width;\n    d = max(d, p.y - (0.56 + 0.14 * (turb - 0.5) + 0.12 * gustPulse));\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    float brightness = clamp(0.85 + 0.3 * gust + 0.15 * jitter, 0.3, 1.4);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow * brightness;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6 * brightness;\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y + 0.10) - 0.10);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.05, 0.045, 0.04), wickMask);\n\n    float waxD = max(abs(uv.x) - 0.32, abs(uv.y + 0.22) - 0.05);\n    float waxMask = smoothstep(0.01, -0.005, waxD);\n    col = mix(col, vec3(0.5, 0.45, 0.35), waxMask * 0.4);\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 8,
+            "subject": 6,
+            "total": 19
+          },
+          "critique": "Flame outline flickers but shape stays too rigid/geometric; add wavering body motion and a visible wick, not just edge noise.",
+          "survived": false,
+          "frames": [
+            "3-0-t0.png",
+            "3-0-t1.png",
+            "3-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "stepped spike flicker",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n    float t = iTime;\n\n    vec2 warp = vec2(fbm(uv * 2.2 + vec2(1.7 * t, -2.3 * t)),\n                      fbm(uv * 2.2 + vec2(-3.1 * t + 4.0, 1.9 * t + 2.0)));\n    float turb = fbm(uv * 3.5 + warp * 1.8 + vec2(0.0, 2.6 * t));\n\n    float spikeSeed = hash21(vec2(floor(t * 7.0), 3.0));\n    float spikeSeed2 = hash21(vec2(floor(t * 7.0) + 1.0, 3.0));\n    float spike = mix(spikeSeed, spikeSeed2, smoothstep(0.0, 1.0, fract(t * 7.0)));\n\n    vec2 p = uv;\n    p.x -= 0.09 * (turb - 0.5) * (1.0 + 2.5 * clamp(p.y, 0.0, 1.0));\n    p.x -= 0.05 * (spike - 0.5) * (0.5 + clamp(p.y, 0.0, 1.0));\n    p.y -= 0.04 * (warp.y - 0.5);\n\n    float heightVar = 1.15 + 0.5 * (turb - 0.5) + 0.6 * (spike - 0.5);\n    float taper = clamp(1.0 - p.y * heightVar, 0.0, 1.0);\n    float width = (0.15 + 0.1 * (warp.x - 0.5)) * taper * taper + 0.014;\n    float d = abs(p.x) - width;\n    d = max(d, p.y - (0.52 + 0.16 * (turb - 0.5) + 0.14 * (spike - 0.5)));\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    float brightness = clamp(0.8 + 0.35 * spike + 0.15 * turb, 0.3, 1.4);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow * brightness;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6 * brightness;\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y + 0.10) - 0.10);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.05, 0.045, 0.04), wickMask);\n\n    float waxD = max(abs(uv.x) - 0.32, abs(uv.y + 0.22) - 0.05);\n    float waxMask = smoothstep(0.01, -0.005, waxD);\n    col = mix(col, vec3(0.5, 0.45, 0.35), waxMask * 0.4);\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 7,
+            "subject": 5,
+            "total": 18
+          },
+          "critique": "Flame is oversized/wick-less and boxy, shrink it and taper near a visible wick for candle scale.",
+          "survived": false,
+          "frames": [
+            "3-1-t0.png",
+            "3-1-t1.png",
+            "3-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "turbulent domain warp wobble",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n\n    float t = iTime;\n    vec2 warp = vec2(fbm(uv * 2.5 + vec2(0.0, t * 2.0)), fbm(uv * 2.5 + vec2(6.0, t * 1.7)));\n    float turb = fbm(uv * 4.0 + warp * 2.0 + vec2(0.0, t * 2.8));\n\n    float flickA = fbm(vec2(t * 2.2, 0.0));\n    float flickB = fbm(vec2(t * 3.6 + 5.0, 1.0));\n    float flickC = turb;\n\n    vec2 p = uv;\n    p.x -= (0.09 * (turb - 0.5) * (1.0 + 2.0 * clamp(p.y, 0.0, 1.0)) + 0.04 * sin(t * 5.0 + flickA * 7.0));\n    p.y -= 0.07 * (warp.y - 0.5) + 0.02 * sin(t * 3.3);\n\n    float heightVar = 1.15 + 0.5 * (flickB - 0.5) + 0.3 * (turb - 0.5);\n    float taper = clamp(1.0 - p.y * heightVar, 0.0, 1.0);\n    float widthVar = 0.16 + 0.09 * (flickC - 0.5) + 0.03 * sin(t * 6.7 + p.y * 8.0);\n    float width = widthVar * taper * taper + 0.015;\n    float wobble = (0.09 + 0.05 * flickC) * sin(p.y * 9.0 + t * 6.0 + flickA * 4.0) * taper;\n    float d = abs(p.x + wobble) - width;\n    d = max(d, p.y - (0.48 + 0.14 * flickB + 0.1 * (turb - 0.5)));\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 18.0);\n    float core = exp(-abs(d) * 45.0);\n\n    float brightness = clamp(0.75 + 0.4 * flickB + 0.15 * (turb - 0.5), 0.3, 1.4);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow * brightness;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6 * brightness;\n\n    float wickD = max(abs(uv.x) - 0.013, abs(uv.y + 0.09) - 0.09);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.04, 0.04, 0.04), wickMask);\n    float emberD = length(uv - vec2(0.0, -0.005));\n    col += vec3(1.0, 0.5, 0.15) * exp(-emberD * 60.0) * (0.4 + 0.3 * flickA);\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 8,
+            "subject": 8,
+            "total": 23
+          },
+          "critique": "Good flame shape and flicker, but silhouette outline reads too crisp/vector-like; soften edges for wax-like glow.",
+          "survived": true,
+          "frames": [
+            "3-2-t0.png",
+            "3-2-t1.png",
+            "3-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "multi-lobe metaball flame",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat smin(float a, float b, float k) {\n    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);\n    return mix(b, a, h) - k * h * (1.0 - h);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    uv.y += 0.28;\n    float t = iTime;\n\n    float n0 = fbm(vec2(t * 1.6, 0.0));\n    float n1 = fbm(vec2(t * 2.4 + 3.0, 1.0));\n    float n2 = fbm(vec2(t * 3.1 + 7.0, 2.0));\n\n    vec2 p = uv;\n    float lobe1 = length((p - vec2(0.02 * sin(t * 4.0 + n0 * 6.0), -0.05)) / vec2(0.14 + 0.05 * n0, 0.30 + 0.12 * n0)) - 1.0;\n    float lobe2 = length((p - vec2(-0.03 * (n1 - 0.5) * 2.0, 0.05 + 0.05 * (n1 - 0.5))) / vec2(0.11 + 0.04 * n1, 0.22 + 0.1 * n1)) - 1.0;\n    float lobe3 = length((p - vec2(0.02 * (n2 - 0.5) * 3.0, 0.18 + 0.08 * (n2 - 0.5))) / vec2(0.08 + 0.03 * n2, 0.14 + 0.08 * n2)) - 1.0;\n\n    float d = smin(lobe1, lobe2, 0.3);\n    d = smin(d, lobe3, 0.25);\n    d = max(d, -p.y - 0.05);\n\n    float glow = exp(-max(d, 0.0) * 10.0);\n    float core = exp(-abs(d) * 30.0);\n\n    float brightness = clamp(0.7 + 0.3 * n0 + 0.2 * n1, 0.3, 1.4);\n\n    vec3 flameCol = palette(clamp(p.y + 0.35, 0.0, 1.0),\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * glow * brightness;\n    col += vec3(1.0, 0.9, 0.6) * core * 0.6 * brightness;\n\n    float wickD = max(abs(uv.x) - 0.013, abs(uv.y + 0.09) - 0.09);\n    float wickMask = smoothstep(0.01, -0.005, wickD);\n    col = mix(col, vec3(0.04, 0.04, 0.04), wickMask);\n\n    float vign = clamp(1.0 - length(uv) * 0.6, 0.0, 1.0);\n    col += vec3(0.015, 0.01, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 1,
+            "palette": 8,
+            "subject": 4,
+            "total": 13
+          },
+          "critique": "Shape is a static rigid arch, not a flickering flame—add turbulent noise to silhouette and vary over time.",
+          "survived": false,
+          "frames": [
+            "3-3-t0.png",
+            "3-3-t1.png",
+            "3-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "raymarched flame volume",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat noise3(vec3 p) {\n    float n1 = noise(p.xy + p.z * 1.7);\n    float n2 = noise(p.yz + p.x * 1.3);\n    float n3 = noise(p.zx + p.y * 2.1);\n    return (n1 + n2 + n3) / 3.0;\n}\n\nfloat density(vec3 p, float t) {\n    float h = clamp(p.y, 0.0, 1.0);\n    float radius = mix(0.16, 0.02, h * h);\n    vec3 q = p;\n    q.xz *= 1.0 + 0.5 * h;\n    float dist = length(q.xz);\n    float shapeFalloff = smoothstep(radius, 0.0, dist);\n    float heightFalloff = smoothstep(1.0, 0.0, p.y) * smoothstep(0.0, 0.05, p.y);\n    vec3 flowP = p * 3.0 + vec3(0.0, -t * 1.8, 0.0);\n    float turb = noise3(flowP);\n    float d = shapeFalloff * heightFalloff * (0.4 + 0.8 * turb);\n    return max(d, 0.0);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    vec3 ro = vec3(0.0, 0.35, -1.1);\n    vec3 target = vec3(0.0, 0.35, 0.0);\n    vec3 fwd = normalize(target - ro);\n    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));\n    vec3 up = cross(fwd, right);\n    vec3 rd = normalize(fwd * 1.4 + uv.x * right + uv.y * up);\n\n    vec3 col = vec3(0.0);\n    float trans = 1.0;\n    float dt = 0.035;\n    vec3 pos = ro;\n    const int STEPS = 40;\n    for (int i = 0; i < STEPS; i++) {\n        pos += rd * dt;\n        if (pos.y < -0.1 || pos.y > 1.3 || trans < 0.02) continue;\n        float dens = density(pos, t);\n        if (dens > 0.001) {\n            float heightC = clamp(pos.y, 0.0, 1.0);\n            vec3 flameCol = palette(heightC, vec3(0.55, 0.3, 0.1), vec3(0.45, 0.3, 0.2), vec3(1.0, 0.7, 0.4), vec3(0.0, 0.1, 0.2));\n            float absorb = dens * dt * 6.0;\n            col += trans * absorb * flameCol * 2.0;\n            trans *= exp(-absorb);\n        }\n    }\n\n    float wickD = length(uv - vec2(0.0, -0.28));\n    col += vec3(1.0, 0.5, 0.15) * exp(-wickD * 40.0) * 0.3;\n\n    float vign = clamp(1.0 - length(uv) * 0.5, 0.0, 1.0);\n    col *= vign * 0.6 + 0.4;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 7,
+            "subject": 6,
+            "total": 13
+          },
+          "critique": "Flame shape is static and symmetric, needs flickering waver and turbulent tip motion.",
+          "survived": false,
+          "frames": [
+            "3-4-t0.png",
+            "3-4-t1.png",
+            "3-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "polar ember flicker field",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    vec2 origin = vec2(0.0, -0.22);\n    vec2 v = uv - origin;\n    v += vec2(1e-4, 1e-4);\n    float r = length(v);\n    float theta = atan(v.y, v.x);\n\n    float vertical = sin(theta);\n    float angNoise = noise(vec2(theta * 2.5 + 10.0, t * 2.6));\n    float angNoise2 = noise(vec2(theta * 5.0 - 3.0, t * 4.1 + 7.0));\n    float flicker = 0.7 + 0.5 * angNoise + 0.25 * angNoise2;\n\n    float shapeBase = smoothstep(-1.0, 1.0, vertical);\n    float maxR = mix(0.035, 0.62, pow(shapeBase, 1.4)) * flicker;\n\n    float edge = smoothstep(maxR, maxR - 0.09, r);\n    float coreEdge = smoothstep(maxR * 0.5, maxR * 0.5 - 0.05, r);\n\n    float heightN = clamp((uv.y - origin.y) / 0.6, 0.0, 1.0);\n    vec3 flameCol = palette(heightN,\n                             vec3(0.55, 0.3, 0.1),\n                             vec3(0.45, 0.3, 0.2),\n                             vec3(1.0, 0.7, 0.4),\n                             vec3(0.0, 0.1, 0.2));\n\n    vec3 col = flameCol * edge * 0.9;\n    col += vec3(1.0, 0.9, 0.55) * coreEdge * 0.6;\n\n    float wickD = max(abs(uv.x) - 0.012, abs(uv.y - origin.y + 0.06) - 0.06);\n    float wickMask = smoothstep(0.008, -0.004, wickD);\n    col = mix(col, vec3(0.05, 0.045, 0.04), wickMask);\n\n    const int NUM_EMBERS = 10;\n    for (int i = 0; i < NUM_EMBERS; i++) {\n        float fi = float(i);\n        float seed = fi * 17.13;\n        float life = fract(t * 0.25 + hash21(vec2(seed, 1.0)));\n        float ex = (hash21(vec2(seed, 2.0)) - 0.5) * 0.25 * (0.3 + life);\n        float ey = origin.y + life * 0.9;\n        float drift = sin(t * 2.0 + seed) * 0.03 * life;\n        vec2 epos = vec2(ex + drift, ey);\n        float ed = length(uv - epos);\n        float emberGlow = exp(-ed * 90.0) * (1.0 - life) * 0.5;\n        col += vec3(1.0, 0.45, 0.1) * emberGlow;\n    }\n\n    float vign = clamp(1.0 - length(uv) * 0.55, 0.0, 1.0);\n    col += vec3(0.012, 0.008, 0.02) * vign;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 9,
+            "subject": 9,
+            "total": 25
+          },
+          "critique": "Good flame shape and colors, but flicker is too smooth/blobby—add sharper, faster licking motion at tip.",
+          "survived": true,
+          "frames": [
+            "3-5-t0.png",
+            "3-5-t1.png",
+            "3-5-t2.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

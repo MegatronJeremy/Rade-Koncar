@@ -1,0 +1,405 @@
+{
+  "prompt": "a black hole with a glowing accretion disk",
+  "mode": "text",
+  "status": "done",
+  "pinned": false,
+  "createdAt": 1789217357187,
+  "generations": [
+    {
+      "index": 1,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "raymarched volume disk",
+          "source": "mat2 rot2(float a) {\n    float s = sin(a), c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nfloat hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 ro = vec3(0.0, 1.0, -3.5);\n    vec3 rd = normalize(vec3(uv, 1.4));\n    float camAngle = iTime * 0.15;\n    ro.xz = rot2(camAngle) * ro.xz;\n    rd.xz = rot2(camAngle) * rd.xz;\n\n    vec3 pos = ro;\n    vec3 col = vec3(0.0);\n\n    for (int i = 0; i < 48; i++) {\n        float dist = length(pos);\n        if (dist < 0.4) {\n            break;\n        }\n        float r2 = max(dist * dist, 0.16);\n        vec3 bend = (-pos / dist) / r2;\n        rd = normalize(rd + bend * 0.05);\n        pos += rd * 0.09;\n\n        float distToPlane = abs(pos.y);\n        float radius = length(pos.xz);\n        float band = smoothstep(0.9, 1.15, radius) * smoothstep(2.6, 2.2, radius);\n        if (band > 0.001) {\n            float density = exp(-distToPlane * 9.0) * band;\n            float angle = atan(pos.z, pos.x);\n            float turb = noise(vec2(radius * 3.0 - iTime * 0.6, angle * 2.5));\n            density *= (0.4 + 0.8 * turb);\n            vec3 hotColor = palette(radius * 0.35 - iTime * 0.08, vec3(0.7, 0.35, 0.15), vec3(0.6, 0.4, 0.3), vec3(1.0, 0.9, 0.7), vec3(0.0, 0.1, 0.25));\n            col += hotColor * density * 0.22;\n        }\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": true,
+            "motion": 0,
+            "palette": 0,
+            "subject": 0,
+            "total": 0
+          },
+          "critique": "renders flat",
+          "survived": false,
+          "frames": [
+            "1-0-t0.png",
+            "1-0-t1.png",
+            "1-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "polar sdf disk",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = vec2(uv.x, uv.y * 2.4);\n    float r = length(p);\n    float theta = atan(p.y, p.x);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.5, 0.68, r) * smoothstep(1.5, 1.15, r);\n\n    float spin = theta - iTime * 0.6 - r * 1.5;\n    float shade = 0.6 + 0.4 * sin(spin * 6.0);\n    float t = r * 0.6 - iTime * 0.15;\n    vec3 hot = palette(t, vec3(0.65, 0.35, 0.2), vec3(0.55, 0.4, 0.35), vec3(1.0, 0.9, 0.6), vec3(0.0, 0.15, 0.3));\n\n    vec3 col = hot * diskMask * shade * 1.3;\n\n    float rim = smoothstep(horizonR + 0.14, horizonR, length(uv));\n    col += vec3(1.0, 0.75, 0.4) * rim * 0.5;\n\n    if (length(uv) < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 4,
+            "subject": 5,
+            "total": 14
+          },
+          "critique": "Disk reads as dim muddy haze, not glowing plasma; boost brightness/saturation and add radial streaking.",
+          "survived": true,
+          "frames": [
+            "1-1-t0.png",
+            "1-1-t1.png",
+            "1-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "fbm domain warp",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float rClamped = max(r, 0.12);\n    float swirl = theta + iTime * (1.1 / rClamped);\n    vec2 p = vec2(cos(swirl), sin(swirl)) * r;\n\n    vec2 q = vec2(\n        fbm(p * 3.0 + iTime * 0.12),\n        fbm(p * 3.0 + vec2(5.2, 1.3) - iTime * 0.15)\n    );\n    vec2 warped = p * 3.0 + 3.5 * q;\n    float n = fbm(warped);\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.35, 1.05, r);\n    vec3 col = palette(n + r * 0.4 - iTime * 0.05, vec3(0.6, 0.3, 0.2), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.1, 0.2, 0.35));\n    col *= diskMask * (0.7 + 0.6 * n);\n\n    if (r < 0.42) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 4,
+            "subject": 8,
+            "total": 19
+          },
+          "critique": "Disk reads as dark maroon smoke, not glowing plasma; push brightness/emission and add hot white-orange highlights.",
+          "survived": true,
+          "frames": [
+            "1-2-t0.png",
+            "1-2-t1.png",
+            "1-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "layered noise streaks",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n    float angNorm = theta / 6.28318 + 0.5;\n\n    float streak = 0.0;\n    float wsum = 0.0;\n    for (int i = 0; i < 4; i++) {\n        float fi = float(i);\n        float speed = 0.5 + fi * 0.35;\n        float scaleA = 5.0 + fi * 4.0;\n        float w = 1.0 / (fi + 1.0);\n        streak += noise(vec2(angNorm * scaleA, r * 12.0 - iTime * speed - fi * 3.1)) * w;\n        wsum += w;\n    }\n    streak /= wsum;\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.4, 1.1, r);\n    vec3 col = palette(streak + r * 0.5, vec3(0.55, 0.3, 0.2), vec3(0.5, 0.45, 0.3), vec3(1.0, 0.7, 0.5), vec3(0.05, 0.2, 0.4));\n    col *= diskMask * (0.5 + 1.0 * streak);\n\n    if (r < 0.42) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 1,
+            "palette": 3,
+            "subject": 5,
+            "total": 9
+          },
+          "critique": "Disk reads as dull maroon haze, not glowing; add bright hot core colors and visible rotation/turbulence.",
+          "survived": false,
+          "frames": [
+            "1-3-t0.png",
+            "1-3-t1.png",
+            "1-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "voronoi plasma disk",
+          "source": "vec2 hash22(vec2 p) {\n    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n    return fract(sin(p) * 43758.5453);\n}\n\nfloat voronoi(vec2 p) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minDist = 8.0;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 neighbor = vec2(float(x), float(y));\n            vec2 pt = hash22(ip + neighbor);\n            pt = 0.5 + 0.5 * sin(iTime * 0.6 + 6.2831 * pt);\n            vec2 diff = neighbor + pt - fp;\n            float d = length(diff);\n            minDist = min(minDist, d);\n        }\n    }\n    return minDist;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    vec2 p = vec2(theta * 2.5 + iTime * 0.25, r * 9.0 - iTime * 0.6);\n    float v = voronoi(p);\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.4, 1.1, r);\n    vec3 col = palette(v + r * 0.3, vec3(0.6, 0.3, 0.25), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.0, 0.1, 0.3));\n    col *= diskMask * (1.0 - clamp(v, 0.0, 1.0) * 0.7);\n\n    if (r < 0.42) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 4,
+            "subject": 4,
+            "total": 11
+          },
+          "critique": "Ring reads as lumpy organic blobs, not a lensed glowing disk; brighten and flatten into swirling bands.",
+          "survived": false,
+          "frames": [
+            "1-4-t0.png",
+            "1-4-t1.png",
+            "1-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "feedback trail accumulation",
+          "source": "mat2 rot2(float a) {\n    float s = sin(a), c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.0);\n\n    for (int i = 0; i < 24; i++) {\n        float fi = float(i);\n        float decay = exp(-fi * 0.14);\n        float ang = -fi * 0.11 + iTime * 0.4;\n        vec2 p = rot2(ang) * uv;\n        float r = length(p);\n        float theta = atan(p.y, p.x);\n        float ring = exp(-pow((r - 0.85) * 6.0, 2.0));\n        float clumps = 0.5 + 0.5 * sin(theta * 7.0 - fi * 0.4);\n        vec3 c = palette(r * 0.5 + fi * 0.02, vec3(0.6, 0.3, 0.2), vec3(0.55, 0.4, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.0, 0.15, 0.3));\n        col += c * ring * clumps * decay * 0.4;\n    }\n\n    float rr = length(uv);\n    col += vec3(1.0, 0.8, 0.5) * smoothstep(0.62, 0.5, rr) * 0.5;\n\n    if (rr < 0.48) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 2,
+            "subject": 3,
+            "total": 5
+          },
+          "critique": "Disk reads as dim dust ring, not glowing; add bright orange/white emission and rotational motion.",
+          "survived": false,
+          "frames": [
+            "1-5-t0.png",
+            "1-5-t1.png",
+            "1-5-t2.png"
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "boosted emission swirl",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float rClamped = max(r, 0.12);\n    float swirl = theta + iTime * (1.1 / rClamped);\n    vec2 p = vec2(cos(swirl), sin(swirl)) * r;\n\n    vec2 q = vec2(\n        fbm(p * 3.0 + iTime * 0.12),\n        fbm(p * 3.0 + vec2(5.2, 1.3) - iTime * 0.15)\n    );\n    vec2 warped = p * 3.0 + 3.5 * q;\n    float n = fbm(warped);\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.35, 1.05, r);\n    vec3 base = palette(n + r * 0.4 - iTime * 0.05, vec3(0.7, 0.35, 0.15), vec3(0.6, 0.45, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.05, 0.15, 0.3));\n\n    float emission = 1.3 + 2.2 * pow(n, 1.5);\n    vec3 col = base * diskMask * emission;\n\n    float hotspot = pow(clamp(n * 1.3 - 0.35, 0.0, 1.0), 3.0);\n    col += vec3(1.0, 0.85, 0.55) * hotspot * diskMask * 1.8;\n\n    if (r < 0.42) {\n        col = vec3(0.0);\n    }\n\n    col *= 1.6;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 8,
+            "palette": 7,
+            "subject": 9,
+            "total": 24
+          },
+          "critique": "Add bright white-hot inner rim near event horizon for realistic glow contrast.",
+          "survived": true,
+          "frames": [
+            "2-0-t0.png",
+            "2-0-t1.png",
+            "2-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "flickering hot rim flare",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float rClamped = max(r, 0.12);\n    float swirl = theta + iTime * (1.1 / rClamped);\n    vec2 p = vec2(cos(swirl), sin(swirl)) * r;\n\n    vec2 q = vec2(\n        fbm(p * 3.0 + iTime * 0.12),\n        fbm(p * 3.0 + vec2(5.2, 1.3) - iTime * 0.15)\n    );\n    vec2 warped = p * 3.0 + 3.5 * q;\n    float n = fbm(warped);\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.35, 1.05, r);\n    float innerHeat = 1.0 - smoothstep(0.42, 0.9, r);\n    vec3 coolCol = palette(n + r * 0.4 - iTime * 0.05, vec3(0.6, 0.3, 0.2), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.1, 0.2, 0.35));\n    vec3 hotCol = mix(vec3(1.0, 0.55, 0.15), vec3(1.0, 0.95, 0.85), innerHeat);\n    float flicker = 0.85 + 0.3 * sin(iTime * 4.0 + n * 12.0);\n\n    vec3 col = mix(coolCol, hotCol, innerHeat) * diskMask * (1.4 + 1.6 * n) * flicker;\n\n    float rim = smoothstep(0.46, 0.42, r);\n    col += vec3(1.0, 0.8, 0.5) * rim * 1.2;\n\n    if (r < 0.42) {\n        col = vec3(0.0);\n    }\n\n    col *= 1.5;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 4,
+            "subject": 6,
+            "total": 17
+          },
+          "critique": "Disk reads as dull beige smoke, not glowing plasma; push brighter orange/white with emissive bloom.",
+          "survived": false,
+          "frames": [
+            "2-1-t0.png",
+            "2-1-t1.png",
+            "2-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "saturated radial streaks",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = vec2(uv.x, uv.y * 2.4);\n    float r = length(p);\n    float theta = atan(p.y, p.x);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.5, 0.68, r) * smoothstep(1.5, 1.15, r);\n\n    float spin = theta - iTime * 0.6 - r * 1.5;\n    float streak = pow(0.5 + 0.5 * sin(spin * 10.0), 4.0);\n    float shade = 0.5 + 0.9 * streak;\n    float t = r * 0.6 - iTime * 0.15;\n    vec3 hot = palette(t, vec3(0.75, 0.35, 0.1), vec3(0.6, 0.45, 0.3), vec3(1.0, 0.95, 0.7), vec3(0.0, 0.1, 0.25));\n    hot = mix(hot, vec3(1.0, 0.5, 0.15), 0.4);\n\n    vec3 col = hot * diskMask * shade * 2.4;\n\n    float rim = smoothstep(horizonR + 0.14, horizonR, length(uv));\n    col += vec3(1.0, 0.8, 0.45) * rim * 0.8;\n\n    if (length(uv) < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 8,
+            "subject": 7,
+            "total": 18
+          },
+          "critique": "Glow barely rotates/swirls frame to frame; add visible disk rotation or Doppler brightening motion.",
+          "survived": false,
+          "frames": [
+            "2-2-t0.png",
+            "2-2-t1.png",
+            "2-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "layered glow streaks",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = vec2(uv.x, uv.y * 2.4);\n    float r = length(p);\n    float theta = atan(p.y, p.x);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.5, 0.68, r) * smoothstep(1.5, 1.15, r);\n\n    vec3 hot = vec3(0.0);\n    float totalW = 0.0;\n    for (int i = 0; i < 4; i++) {\n        float fi = float(i);\n        float spin = theta - iTime * (0.6 + 0.15 * fi) - r * 1.5;\n        float streak = pow(0.5 + 0.5 * sin(spin * (8.0 + 4.0 * fi)), 3.0);\n        float w = 1.0 / (1.0 + fi);\n        hot += streak * w * palette(r * 0.6 - iTime * 0.15 + fi * 0.1, vec3(0.7, 0.35, 0.15), vec3(0.55, 0.4, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.0, 0.15, 0.3));\n        totalW += w;\n    }\n    hot /= totalW;\n\n    vec3 col = hot * diskMask * 2.6;\n\n    float rim = smoothstep(horizonR + 0.14, horizonR, length(uv));\n    col += vec3(1.0, 0.75, 0.4) * rim * 0.6;\n\n    if (length(uv) < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 5,
+            "subject": 8,
+            "total": 19
+          },
+          "critique": "Disk reads as dull olive/brown fog, not glowing plasma; add bright hot rim near horizon.",
+          "survived": true,
+          "frames": [
+            "2-3-t0.png",
+            "2-3-t1.png",
+            "2-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "raymarched disk volume",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 suv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    vec3 ro = vec3(0.0, 1.3, -3.2);\n    vec3 target = vec3(0.0, 0.0, 0.0);\n    vec3 ww = normalize(target - ro);\n    vec3 uu = normalize(cross(vec3(0.0, 1.0, 0.0), ww));\n    vec3 vv = cross(ww, uu);\n    vec3 rd = normalize(suv.x * uu + suv.y * vv + 1.6 * ww);\n\n    float horizonR = 0.55;\n    vec3 col = vec3(0.0);\n    float t = 0.0;\n    float dt = 0.09;\n    bool hit = false;\n\n    for (int i = 0; i < 56; i++) {\n        vec3 pos = ro + rd * t;\n        float distC = length(pos);\n        if (distC < horizonR) {\n            hit = true;\n            break;\n        }\n        float diskY = abs(pos.y);\n        float diskR = length(pos.xz);\n        float density = smoothstep(0.1, 0.0, diskY) * smoothstep(0.55, 0.9, diskR) * smoothstep(2.4, 1.6, diskR);\n        if (density > 0.001) {\n            float ang = atan(pos.z, pos.x);\n            float swirl = ang * 2.0 - iTime * 1.4 + diskR * 2.5;\n            float turb = noise(vec2(diskR * 5.0, swirl * 1.5));\n            vec3 emission = palette(diskR * 0.7 - iTime * 0.1 + turb * 0.3, vec3(0.8, 0.4, 0.15), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.0, 0.15, 0.3));\n            col += emission * density * dt * (1.5 + 2.0 * turb);\n        }\n        t += dt;\n    }\n\n    if (hit) {\n        col = vec3(0.0);\n    }\n\n    col *= 1.8;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 4,
+            "palette": 6,
+            "subject": 8,
+            "total": 18
+          },
+          "critique": "disk lacks bright glow/hot-spot contrast; increase emissive intensity and add visible rotational swirl over time",
+          "survived": false,
+          "frames": [
+            "2-4-t0.png",
+            "2-4-t1.png",
+            "2-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "voronoi plasma cells",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat voronoi(vec2 p) {\n    vec2 n = floor(p);\n    vec2 f = fract(p);\n    float minDist = 1.0;\n    for (int j = -1; j <= 1; j++) {\n        for (int i = -1; i <= 1; i++) {\n            vec2 g = vec2(float(i), float(j));\n            vec2 o = vec2(hash21(n + g), hash21(n + g + vec2(37.0, 17.0)));\n            vec2 r = g + o - f;\n            float d = dot(r, r);\n            minDist = min(minDist, d);\n        }\n    }\n    return sqrt(minDist);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n    float horizonR = 0.4;\n\n    float diskMask = smoothstep(0.42, 0.55, r) * smoothstep(1.4, 1.05, r);\n\n    float swirl = theta * 3.0 + iTime * 0.8 - r * 4.0;\n    vec2 cellsP = vec2(swirl, r * 10.0 - iTime * 0.5);\n    float cell = voronoi(cellsP);\n    float glow = 1.0 - smoothstep(0.0, 0.35, cell);\n\n    vec3 hot = palette(r * 1.2 - iTime * 0.1, vec3(0.8, 0.4, 0.15), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.9, 0.55), vec3(0.0, 0.15, 0.3));\n    vec3 col = hot * diskMask * (0.6 + 2.2 * glow);\n\n    float rim = smoothstep(horizonR + 0.1, horizonR, r);\n    col += vec3(1.0, 0.8, 0.5) * rim * 0.9;\n\n    if (r < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 4,
+            "subject": 9,
+            "total": 18
+          },
+          "critique": "Disk reads dull olive-brown, not glowing; push hotter whites/oranges near inner edge for incandescence.",
+          "survived": false,
+          "frames": [
+            "2-5-t0.png",
+            "2-5-t1.png",
+            "2-5-t2.png"
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "white-hot horizon rim glow",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float rClamped = max(r, 0.12);\n    float swirl = theta + iTime * (1.1 / rClamped);\n    vec2 p = vec2(cos(swirl), sin(swirl)) * r;\n\n    vec2 q = vec2(\n        fbm(p * 3.0 + iTime * 0.12),\n        fbm(p * 3.0 + vec2(5.2, 1.3) - iTime * 0.15)\n    );\n    vec2 warped = p * 3.0 + 3.5 * q;\n    float n = fbm(warped);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.35, 1.05, r);\n    vec3 base = palette(n + r * 0.4 - iTime * 0.05, vec3(0.7, 0.35, 0.15), vec3(0.6, 0.45, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.05, 0.15, 0.3));\n\n    float emission = 1.3 + 2.2 * pow(n, 1.5);\n    vec3 col = base * diskMask * emission;\n\n    float hotspot = pow(clamp(n * 1.3 - 0.35, 0.0, 1.0), 3.0);\n    col += vec3(1.0, 0.85, 0.55) * hotspot * diskMask * 1.8;\n\n    float rimDist = r - horizonR;\n    float innerRim = exp(-max(rimDist, 0.0) * 18.0) * smoothstep(0.0, 0.02, rimDist);\n    float flicker = 0.85 + 0.15 * sin(iTime * 4.0 + theta * 6.0);\n    col += vec3(1.0, 0.97, 0.9) * innerRim * 3.0 * flicker;\n\n    float horizonEdge = smoothstep(horizonR, horizonR - 0.03, r);\n    col = mix(col, vec3(0.0), horizonEdge);\n\n    col *= 1.6;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 6,
+            "subject": 9,
+            "total": 21
+          },
+          "critique": "Disk swirls nicely but lacks bright hot inner rim glow and Doppler beaming contrast.",
+          "survived": false,
+          "frames": [
+            "3-0-t0.png",
+            "3-0-t1.png",
+            "3-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "photon ring gaussian band",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float rClamped = max(r, 0.12);\n    float swirl = theta + iTime * (1.1 / rClamped);\n    vec2 p = vec2(cos(swirl), sin(swirl)) * r;\n\n    vec2 q = vec2(\n        fbm(p * 3.0 + iTime * 0.12),\n        fbm(p * 3.0 + vec2(5.2, 1.3) - iTime * 0.15)\n    );\n    vec2 warped = p * 3.0 + 3.5 * q;\n    float n = fbm(warped);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.35, 1.05, r);\n    vec3 base = palette(n + r * 0.4 - iTime * 0.05, vec3(0.7, 0.35, 0.15), vec3(0.6, 0.45, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.05, 0.15, 0.3));\n\n    float emission = 1.3 + 2.2 * pow(n, 1.5);\n    vec3 col = base * diskMask * emission;\n\n    float hotspot = pow(clamp(n * 1.3 - 0.35, 0.0, 1.0), 3.0);\n    col += vec3(1.0, 0.85, 0.55) * hotspot * diskMask * 1.8;\n\n    float ringCenter = horizonR + 0.045;\n    float ringWidth = 0.02;\n    float d = (r - ringCenter) / ringWidth;\n    float photonRing = exp(-d * d);\n    vec3 whiteHot = mix(vec3(1.0, 0.8, 0.5), vec3(1.0), 0.6);\n    col += whiteHot * photonRing * 4.5;\n\n    float shadow = smoothstep(horizonR, horizonR - 0.05, r);\n    col = mix(col, vec3(0.0), shadow);\n\n    col *= 1.6;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 8,
+            "palette": 6,
+            "subject": 9,
+            "total": 23
+          },
+          "critique": "Disk reads pale/tan rather than hot glowing plasma; push toward incandescent orange-white with blue Doppler edge.",
+          "survived": true,
+          "frames": [
+            "3-1-t0.png",
+            "3-1-t1.png",
+            "3-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "fire palette streak rim",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = vec2(uv.x, uv.y * 2.4);\n    float r = length(p);\n    float theta = atan(p.y, p.x);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.5, 0.68, r) * smoothstep(1.5, 1.15, r);\n\n    vec3 hot = vec3(0.0);\n    float totalW = 0.0;\n    for (int i = 0; i < 4; i++) {\n        float fi = float(i);\n        float spin = theta - iTime * (0.6 + 0.15 * fi) - r * 1.5;\n        float streak = pow(0.5 + 0.5 * sin(spin * (8.0 + 4.0 * fi)), 3.0);\n        float w = 1.0 / (1.0 + fi);\n        vec3 fireCol = palette(r * 0.6 - iTime * 0.15 + fi * 0.1, vec3(0.85, 0.4, 0.1), vec3(0.55, 0.35, 0.2), vec3(0.9, 0.85, 0.7), vec3(0.02, 0.05, 0.1));\n        hot += streak * w * fireCol;\n        totalW += w;\n    }\n    hot /= totalW;\n\n    vec3 col = hot * diskMask * 3.4;\n\n    float rimDist = length(uv) - horizonR;\n    float rim = exp(-max(rimDist, 0.0) * 22.0) * smoothstep(0.0, 0.015, rimDist);\n    col += vec3(1.0, 0.95, 0.85) * rim * 4.0;\n\n    if (length(uv) < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 8,
+            "subject": 9,
+            "total": 23
+          },
+          "critique": "Good warm glow and clear disk silhouette, but rotation is too subtle—swirl the disk faster around the hole.",
+          "survived": true,
+          "frames": [
+            "3-2-t0.png",
+            "3-2-t1.png",
+            "3-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "blackbody temperature disk",
+          "source": "vec3 blackbody(float t) {\n    t = clamp(t, 0.0, 1.0);\n    vec3 cool = vec3(0.6, 0.05, 0.02);\n    vec3 mid = vec3(1.0, 0.45, 0.08);\n    vec3 hotc = vec3(1.0, 0.9, 0.6);\n    vec3 white = vec3(1.0, 1.0, 0.95);\n    vec3 c1 = mix(cool, mid, smoothstep(0.0, 0.4, t));\n    vec3 c2 = mix(c1, hotc, smoothstep(0.35, 0.75, t));\n    return mix(c2, white, smoothstep(0.7, 1.0, t));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 p = vec2(uv.x, uv.y * 2.4);\n    float r = length(p);\n    float theta = atan(p.y, p.x);\n\n    float horizonR = 0.42;\n    float diskMask = smoothstep(0.5, 0.68, r) * smoothstep(1.5, 1.15, r);\n\n    float heat = 0.0;\n    float totalW = 0.0;\n    for (int i = 0; i < 4; i++) {\n        float fi = float(i);\n        float spin = theta - iTime * (0.6 + 0.15 * fi) - r * 1.5;\n        float streak = pow(0.5 + 0.5 * sin(spin * (8.0 + 4.0 * fi)), 3.0);\n        float w = 1.0 / (1.0 + fi);\n        heat += streak * w;\n        totalW += w;\n    }\n    heat /= totalW;\n\n    float temperature = clamp(heat * 1.4 + (1.0 - smoothstep(horizonR, 0.9, r)) * 0.5, 0.0, 1.0);\n    vec3 col = blackbody(temperature) * diskMask * (1.8 + heat * 2.0);\n\n    float rimDist = max(length(uv) - horizonR, 0.0);\n    float rim = exp(-rimDist * 20.0);\n    float flicker = 0.8 + 0.2 * sin(iTime * 5.0 + theta * 10.0);\n    col += vec3(1.0, 0.98, 0.92) * rim * 3.5 * flicker;\n\n    if (length(uv) < horizonR) {\n        col = vec3(0.0);\n    }\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 7,
+            "subject": 7,
+            "total": 19
+          },
+          "critique": "Disk reads as flat swirl, not lensed ring; add gravitational bending and brighter Doppler-boosted edge.",
+          "survived": false,
+          "frames": [
+            "3-3-t0.png",
+            "3-3-t1.png",
+            "3-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "raymarched lensed volume",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    vec3 ro = vec3(0.0, 0.9, -2.4);\n    vec3 rd = normalize(vec3(uv, 1.3));\n    float tilt = 0.55;\n    mat2 tiltRot = mat2(cos(tilt), -sin(tilt), sin(tilt), cos(tilt));\n    ro.yz = tiltRot * ro.yz;\n    rd.yz = tiltRot * rd.yz;\n\n    float horizonR = 0.5;\n    vec3 pos = ro;\n    vec3 vel = rd;\n    vec3 accum = vec3(0.0);\n    float alphaAcc = 0.0;\n\n    for (int i = 0; i < 56; i++) {\n        float dCenter = length(pos);\n        if (dCenter < horizonR) {\n            break;\n        }\n        vec3 toCenter = -pos / max(dCenter, 0.001);\n        float bendStrength = 0.9 / (dCenter * dCenter + 0.15);\n        vel = normalize(vel + toCenter * bendStrength * 0.05);\n        pos += vel * 0.09;\n\n        float distToPlane = abs(pos.y);\n        float radial = length(pos.xz);\n        float diskDensity = exp(-distToPlane * distToPlane * 40.0) * smoothstep(0.55, 0.75, radial) * smoothstep(2.0, 1.2, radial);\n\n        float swirl = atan(pos.z, pos.x) * 3.0 - iTime * 1.5 + radial * 2.0;\n        float turbulence = 0.6 + 0.4 * sin(swirl + noise(pos.xz * 2.0 + iTime * 0.2) * 6.0);\n\n        vec3 emitCol = palette(radial * 0.7 - iTime * 0.1, vec3(0.75, 0.4, 0.15), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.85, 0.6), vec3(0.05, 0.1, 0.25));\n        float glow = diskDensity * turbulence;\n\n        accum += emitCol * glow * (1.0 - alphaAcc) * 1.4;\n        alphaAcc += glow * (1.0 - alphaAcc);\n\n        if (alphaAcc > 0.98) {\n            break;\n        }\n    }\n\n    float horizonGlow = exp(-max(length(pos) - horizonR, 0.0) * 12.0) * step(length(pos), horizonR + 0.06);\n    accum += vec3(1.0, 0.9, 0.8) * horizonGlow * 2.0;\n\n    if (length(pos) < horizonR) {\n        accum *= 0.15;\n    }\n\n    vec3 col = accum;\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 6,
+            "subject": 6,
+            "total": 19
+          },
+          "critique": "Silhouette reads as an amorphous blob, not a circular event horizon; add a clean disk-shaped occluder and bright lensed ring.",
+          "survived": false,
+          "frames": [
+            "3-4-t0.png",
+            "3-4-t1.png",
+            "3-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "voronoi plasma cells",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec2 hash22(vec2 p) {\n    float n = hash21(p);\n    float m = hash21(p + 17.13);\n    return vec2(n, m);\n}\n\nfloat voronoi(vec2 p, float t) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minDist = 8.0;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 cell = vec2(float(x), float(y));\n            vec2 cellPoint = hash22(ip + cell);\n            cellPoint = 0.5 + 0.5 * sin(t + 6.2831 * cellPoint);\n            vec2 diff = cell + cellPoint - fp;\n            float d = length(diff);\n            minDist = min(minDist, d);\n        }\n    }\n    return minDist;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n\n    float horizonR = 0.4;\n    float rClamped = max(r, 0.1);\n    float spin = theta * 3.0 + iTime * (0.8 / rClamped);\n    vec2 cellsUv = vec2(cos(spin), sin(spin)) * r * 6.0 + vec2(0.0, r * 4.0);\n\n    float cell = voronoi(cellsUv, iTime * 0.6);\n    float plasma = 1.0 - smoothstep(0.0, 0.5, cell);\n\n    float diskMask = smoothstep(0.4, 0.55, r) * smoothstep(1.4, 1.0, r);\n\n    vec3 col = palette(plasma + r - iTime * 0.05, vec3(0.8, 0.35, 0.1), vec3(0.5, 0.4, 0.3), vec3(1.0, 0.8, 0.5), vec3(0.02, 0.1, 0.2));\n    col *= plasma * diskMask * 3.0;\n\n    float ringDist = r - horizonR;\n    float photonRing = exp(-max(ringDist, 0.0) * 25.0) * smoothstep(0.0, 0.02, ringDist);\n    col += vec3(1.0, 0.95, 0.85) * photonRing * 3.5;\n\n    float shadow = smoothstep(horizonR, horizonR - 0.04, r);\n    col = mix(col, vec3(0.0), shadow);\n\n    col = col / (1.0 + col);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 7,
+            "subject": 7,
+            "total": 20
+          },
+          "critique": "Disk reads as radial spiky rays, not a swirling accretion disk; flatten into a rotating orbital ring with lensing.",
+          "survived": false,
+          "frames": [
+            "3-5-t0.png",
+            "3-5-t1.png",
+            "3-5-t2.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,395 @@
+{
+  "prompt": "a flower blooming, petals opening",
+  "mode": "text",
+  "status": "done",
+  "pinned": false,
+  "createdAt": 1789219225289,
+  "generations": [
+    {
+      "index": 1,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "radial sdf petals",
+          "source": "float sdPetal(vec2 p, float len, float wid) {\n    p.y -= len * 0.5;\n    vec2 q = vec2(p.x / wid, p.y / len);\n    return length(q) - 0.5;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = 0.5 + 0.5 * sin(iTime * 0.4 - 1.5707963);\n    bloom = smoothstep(0.0, 1.0, bloom);\n    const int PETALS = 8;\n    float d = 1e5;\n    float len = mix(0.06, 0.5, bloom);\n    float wid = mix(0.05, 0.14, bloom);\n    for (int i = 0; i < PETALS; i++) {\n        float ang = (float(i) / float(PETALS)) * 6.28318 + bloom * 0.6;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        float pd = sdPetal(p, len, wid);\n        d = min(d, pd);\n    }\n    float center = length(uv) - 0.08;\n    d = min(d, center);\n    vec3 petalCol = mix(vec3(0.9, 0.2, 0.4), vec3(1.0, 0.7, 0.85), bloom);\n    vec3 centerCol = vec3(0.95, 0.75, 0.15);\n    float cmask = smoothstep(0.01, -0.01, center);\n    vec3 col = mix(vec3(0.05, 0.08, 0.05), petalCol, smoothstep(0.02, -0.02, d));\n    col = mix(col, centerCol, cmask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 0,
+            "palette": 3,
+            "subject": 1,
+            "total": 4
+          },
+          "critique": "This is a static orange dot, not petals; add radiating petal shapes that unfold outward over time.",
+          "survived": false,
+          "frames": [
+            "1-0-t0.png",
+            "1-0-t1.png",
+            "1-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "polar layered bloom",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float a = atan(uv.y, uv.x);\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.35));\n    const int LAYERS = 4;\n    vec3 col = vec3(0.03, 0.05, 0.03);\n    for (int i = 0; i < LAYERS; i++) {\n        float fi = float(i);\n        float layerBloom = clamp(bloom * 1.4 - fi * 0.15, 0.0, 1.0);\n        float petals = 5.0 + fi;\n        float edge = mix(0.03, 0.45 - fi * 0.05, layerBloom) * (0.7 + 0.3 * cos(petals * a + fi * 1.7));\n        float mask = smoothstep(edge, edge - 0.03, r - fi * 0.02);\n        vec3 pcol = palette(fi / float(LAYERS) + bloom * 0.2, vec3(0.6, 0.3, 0.4), vec3(0.4, 0.3, 0.3), vec3(1.0, 1.0, 0.5), vec3(0.0, 0.2, 0.4));\n        col = mix(col, pcol, mask * (1.0 - fi * 0.15));\n    }\n    float centerMask = smoothstep(0.1, 0.06, r);\n    col = mix(col, vec3(0.9, 0.7, 0.2), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 6,
+            "subject": 7,
+            "total": 18
+          },
+          "critique": "Reads as rotating/color-shifting flower, not petals opening; add radial growth of petal length over time.",
+          "survived": false,
+          "frames": [
+            "1-1-t0.png",
+            "1-1-t1.png",
+            "1-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "fbm domain warp bloom",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    float r = length(uv);\n    float a = atan(uv.y, uv.x);\n    vec2 warpUV = uv * 3.0 + vec2(cos(a * 6.0 + iTime * 0.5), sin(a * 6.0 + iTime * 0.5)) * 0.3 * bloom;\n    vec2 q = vec2(fbm(warpUV + iTime * 0.15), fbm(warpUV + vec2(5.2, 1.3) - iTime * 0.1));\n    vec2 warped = warpUV + 1.5 * q * bloom;\n    float n = fbm(warped);\n    float petalMask = 1.0 - smoothstep(mix(0.05, 0.55, bloom), mix(0.08, 0.6, bloom) + 0.05, r + 0.05 * sin(a * 6.0 + n * 3.0));\n    vec3 base = palette(n + bloom * 0.3, vec3(0.6, 0.25, 0.35), vec3(0.4, 0.35, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.0, 0.1, 0.25));\n    vec3 col = mix(vec3(0.04, 0.06, 0.05), base, petalMask);\n    float centerMask = smoothstep(0.09, 0.05, r);\n    col = mix(col, vec3(0.85, 0.65, 0.15), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 7,
+            "subject": 8,
+            "total": 21
+          },
+          "critique": "Petals swirl/distort rather than unfurl radially outward from center like a true bloom.",
+          "survived": true,
+          "frames": [
+            "1-2-t0.png",
+            "1-2-t1.png",
+            "1-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "raymarched volumetric bloom",
+          "source": "mat2 rot(float a) {\n    float s = sin(a);\n    float c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nfloat sdEllipsoid(vec3 p, vec3 r) {\n    return (length(p / r) - 1.0) * min(r.x, min(r.y, r.z));\n}\n\nfloat map(vec3 p, float openA) {\n    float d = p.y + 0.5;\n    const int PETALS = 6;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        vec3 q = p;\n        q.xz = rot(ang) * q.xz;\n        vec2 yz = rot(openA) * q.yz;\n        q.yz = yz;\n        q.x -= 0.35;\n        float pd = sdEllipsoid(q, vec3(0.32, 0.05, 0.14));\n        d = min(d, pd);\n    }\n    float center = length(p - vec3(0.0, -0.05, 0.0)) - 0.15;\n    d = min(d, center);\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    float openA = mix(1.4, 0.05, bloom);\n    vec3 ro = vec3(0.0, 0.9, 1.6);\n    vec3 rd = normalize(vec3(uv, -1.4));\n    vec2 ryz = rot(-0.55) * rd.yz;\n    rd.yz = ryz;\n    vec3 col = vec3(0.02, 0.03, 0.05);\n    float t = 0.0;\n    bool hit = false;\n    vec3 p = ro;\n    const int STEPS = 48;\n    for (int i = 0; i < STEPS; i++) {\n        p = ro + rd * t;\n        float d = map(p, openA);\n        if (d < 0.001) {\n            hit = true;\n            break;\n        }\n        t += d * 0.7 + 0.001;\n        if (t > 8.0) break;\n    }\n    if (hit) {\n        vec2 e = vec2(0.001, 0.0);\n        vec3 n = normalize(vec3(\n            map(p + e.xyy, openA) - map(p - e.xyy, openA),\n            map(p + e.yxy, openA) - map(p - e.yxy, openA),\n            map(p + e.yyx, openA) - map(p - e.yyx, openA)\n        ));\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));\n        float diff = clamp(dot(n, lightDir), 0.0, 1.0);\n        float petalZone = step(-0.03, p.y);\n        vec3 base = mix(mix(vec3(0.9, 0.2, 0.45), vec3(1.0, 0.85, 0.9), bloom), vec3(0.95, 0.75, 0.2), petalZone);\n        col = base * (0.3 + 0.7 * diff);\n    }\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": true,
+            "motion": 0,
+            "palette": 0,
+            "subject": 0,
+            "total": 0
+          },
+          "critique": "renders flat",
+          "survived": false,
+          "frames": [
+            "1-3-t0.png",
+            "1-3-t1.png",
+            "1-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "voronoi cellular petals",
+          "source": "vec2 hash2(vec2 p) {\n    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n    return fract(sin(p) * 43758.5453123);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat voronoi(vec2 x, float t) {\n    vec2 n = floor(x);\n    vec2 f = fract(x);\n    float md = 8.0;\n    for (int j = -1; j <= 1; j++) {\n        for (int i = -1; i <= 1; i++) {\n            vec2 g = vec2(float(i), float(j));\n            vec2 o = hash2(n + g);\n            o = 0.5 + 0.5 * sin(t + 6.2831 * o);\n            vec2 r = g + o - f;\n            float d = dot(r, r);\n            md = min(md, d);\n        }\n    }\n    return sqrt(md);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    float r = length(uv);\n    float a = atan(uv.y, uv.x);\n    vec2 p = vec2(a / 6.28318 * 6.0, r * 6.0 - iTime * 0.15);\n    float v = voronoi(p, iTime * 0.5);\n    float petalRadius = mix(0.05, 0.5, bloom);\n    float mask = smoothstep(petalRadius + 0.05, petalRadius - 0.1, r);\n    vec3 col0 = palette(v + bloom * 0.2, vec3(0.55, 0.2, 0.35), vec3(0.45, 0.35, 0.3), vec3(1.0, 0.9, 0.6), vec3(0.0, 0.15, 0.3));\n    vec3 col = mix(vec3(0.03, 0.05, 0.04), col0, mask);\n    float center = smoothstep(0.1, 0.06, r);\n    col = mix(col, vec3(0.9, 0.7, 0.2), center);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 6,
+            "palette": 5,
+            "subject": 4,
+            "total": 15
+          },
+          "critique": "Shape reads more like a cellular mandala than petals; sharpen individual petal silhouettes and separate them radially as they open.",
+          "survived": false,
+          "frames": [
+            "1-4-t0.png",
+            "1-4-t1.png",
+            "1-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "feedback trail accumulation",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat sdPetals(vec2 uv, float bloom) {\n    const int PETALS = 6;\n    float d = 1e5;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        p.y -= mix(0.03, 0.3, bloom) * 0.5;\n        vec2 q = vec2(p.x / mix(0.04, 0.12, bloom), p.y / mix(0.06, 0.32, bloom));\n        d = min(d, length(q) - 0.5);\n    }\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.02, 0.03, 0.04);\n    const int TRAILS = 10;\n    for (int i = 0; i < TRAILS; i++) {\n        float fi = float(i);\n        float ti = iTime - fi * 0.1;\n        float bloom = clamp(0.5 + 0.5 * sin(ti * 0.4), 0.0, 1.0);\n        bloom = smoothstep(0.0, 1.0, bloom);\n        float d = sdPetals(uv, bloom);\n        float glow = exp(-max(d, 0.0) * 14.0) * (1.0 - fi / float(TRAILS));\n        vec3 tint = palette(bloom + fi * 0.03, vec3(0.6, 0.25, 0.35), vec3(0.4, 0.3, 0.3), vec3(1.0, 0.8, 0.5), vec3(0.0, 0.1, 0.25));\n        col += tint * glow * 0.18;\n    }\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.05, r);\n    col += vec3(0.5, 0.4, 0.1) * centerMask;\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 7,
+            "palette": 6,
+            "subject": 8,
+            "total": 21
+          },
+          "critique": "Petals grow and brighten well, but colors feel fiery/neon rather than natural flower hues.",
+          "survived": true,
+          "frames": [
+            "1-5-t0.png",
+            "1-5-t1.png",
+            "1-5-t2.png"
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "radial unfurl petals",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    float r = length(uv);\n    float ang = atan(uv.y, uv.x);\n    float pa = ang * 6.0;\n    float sharpness = mix(9.0, 1.6, bloom);\n    float lobe = pow(max(cos(pa * 0.5), 0.0), sharpness);\n    float outerR = mix(0.05, 0.52, bloom) * mix(0.35, 1.0, lobe);\n    float n = fbm(uv * 3.0 + iTime * 0.08);\n    float petalMask = 1.0 - smoothstep(outerR - 0.05, outerR + 0.02, r - 0.02 * n);\n    vec3 base = palette(n * 0.3 + bloom * 0.35 + r * 0.4, vec3(0.6, 0.25, 0.35), vec3(0.4, 0.35, 0.3), vec3(1.0, 0.8, 0.6), vec3(0.0, 0.1, 0.25));\n    vec3 col = mix(vec3(0.04, 0.06, 0.05), base, petalMask);\n    float centerMask = smoothstep(0.09, 0.04, r);\n    col = mix(col, vec3(0.85, 0.65, 0.15), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 5,
+            "subject": 5,
+            "total": 13
+          },
+          "critique": "Petals rotate and darken but don't expand outward; animate radial opening/unfurling instead.",
+          "survived": false,
+          "frames": [
+            "2-0-t0.png",
+            "2-0-t1.png",
+            "2-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "layered unfurl rings",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat petalLayer(vec2 uv, float bloomL, float rot, float count, float rMax) {\n    float r = length(uv);\n    float ang = atan(uv.y, uv.x) + rot;\n    float pa = ang * count;\n    float sharpness = mix(10.0, 1.8, bloomL);\n    float lobe = pow(max(cos(pa * 0.5), 0.0), sharpness);\n    float outerR = mix(0.04, rMax, bloomL) * mix(0.3, 1.0, lobe);\n    return 1.0 - smoothstep(outerR - 0.04, outerR + 0.02, r);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime * 0.3;\n    float bloomOuter = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(t));\n    float bloomInner = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(t - 0.6));\n    float outerMask = petalLayer(uv, bloomOuter, 0.0, 6.0, 0.55);\n    float innerMask = petalLayer(uv, bloomInner, 0.5235988, 5.0, 0.32);\n    float n = fbm(uv * 4.0 + iTime * 0.05);\n    vec3 outerCol = palette(n * 0.2 + 0.1, vec3(0.65, 0.2, 0.35), vec3(0.35, 0.3, 0.3), vec3(1.0, 0.7, 0.6), vec3(0.0, 0.15, 0.3));\n    vec3 innerCol = palette(n * 0.2 + 0.5, vec3(0.7, 0.3, 0.4), vec3(0.3, 0.3, 0.25), vec3(1.0, 0.9, 0.6), vec3(0.05, 0.05, 0.2));\n    vec3 col = vec3(0.04, 0.06, 0.05);\n    col = mix(col, outerCol, outerMask);\n    col = mix(col, innerCol, innerMask);\n    float r = length(uv);\n    float centerMask = smoothstep(0.08, 0.03, r);\n    col = mix(col, vec3(0.9, 0.7, 0.2), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 6,
+            "subject": 5,
+            "total": 14
+          },
+          "critique": "Petals barely lengthen/open across frames; increase growth amplitude and add more petals for a fuller bloom.",
+          "survived": false,
+          "frames": [
+            "2-1-t0.png",
+            "2-1-t1.png",
+            "2-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "pastel petal fill",
+          "source": "float sdPetals(vec2 uv, float bloom) {\n    const int PETALS = 6;\n    float d = 1e5;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        p.y -= mix(0.03, 0.3, bloom) * 0.5;\n        vec2 q = vec2(p.x / mix(0.04, 0.12, bloom), p.y / mix(0.06, 0.32, bloom));\n        d = min(d, length(q) - 0.5);\n    }\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.05, 0.07, 0.05);\n    const int TRAILS = 6;\n    for (int i = 0; i < TRAILS; i++) {\n        float fi = float(i);\n        float ti = iTime - fi * 0.12;\n        float bloom = clamp(0.5 + 0.5 * sin(ti * 0.4), 0.0, 1.0);\n        bloom = smoothstep(0.0, 1.0, bloom);\n        float d = sdPetals(uv, bloom);\n        float fill = smoothstep(0.02, -0.02, d);\n        float fade = 1.0 - fi / float(TRAILS);\n        vec3 tint = mix(vec3(0.8, 0.35, 0.5), vec3(1.0, 0.88, 0.92), bloom);\n        col = mix(col, tint, fill * fade * 0.6);\n    }\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.05, r);\n    col = mix(col, vec3(0.95, 0.8, 0.25), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 8,
+            "palette": 6,
+            "subject": 9,
+            "total": 23
+          },
+          "critique": "Nice growing bloom, but petals stay flat pink/yellow—vary hue/saturation and add depth shading for realism.",
+          "survived": true,
+          "frames": [
+            "2-2-t0.png",
+            "2-2-t1.png",
+            "2-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "muted glow trails",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat sdPetals(vec2 uv, float bloom) {\n    const int PETALS = 6;\n    float d = 1e5;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        p.y -= mix(0.03, 0.3, bloom) * 0.5;\n        vec2 q = vec2(p.x / mix(0.04, 0.12, bloom), p.y / mix(0.06, 0.32, bloom));\n        d = min(d, length(q) - 0.5);\n    }\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.03, 0.05, 0.04);\n    const int TRAILS = 8;\n    for (int i = 0; i < TRAILS; i++) {\n        float fi = float(i);\n        float ti = iTime - fi * 0.1;\n        float bloom = clamp(0.5 + 0.5 * sin(ti * 0.4), 0.0, 1.0);\n        bloom = smoothstep(0.0, 1.0, bloom);\n        float d = sdPetals(uv, bloom);\n        float glow = exp(-max(d, 0.0) * 20.0) * (1.0 - fi / float(TRAILS));\n        vec3 tint = palette(bloom * 0.5 + 0.5, vec3(0.75, 0.55, 0.55), vec3(0.2, 0.2, 0.2), vec3(0.5, 0.4, 0.4), vec3(0.9, 0.75, 0.7));\n        col += tint * glow * 0.09;\n    }\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.05, r);\n    col = mix(col, vec3(0.9, 0.75, 0.3), centerMask * 0.8);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 3,
+            "palette": 4,
+            "subject": 6,
+            "total": 13
+          },
+          "critique": "Petals barely grow/unfurl and are dull gray; needs vivid petal color and clear radial opening motion.",
+          "survived": false,
+          "frames": [
+            "2-3-t0.png",
+            "2-3-t1.png",
+            "2-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "raymarched hinged petals",
+          "source": "mat2 rot(float a) {\n    float s = sin(a);\n    float c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nfloat sdPetal(vec3 p, float theta) {\n    p.xy = rot(theta) * p.xy;\n    vec3 s = vec3(0.42, 0.09, 0.16);\n    vec3 q = p / s;\n    return (length(q) - 1.0) * min(min(s.x, s.y), s.z);\n}\n\nfloat map(vec3 p, float bloom) {\n    float d = 1e5;\n    const int N = 6;\n    float theta = mix(1.5708, 0.0, bloom);\n    for (int i = 0; i < N; i++) {\n        float phi = float(i) / float(N) * 6.28318;\n        float sp = sin(phi);\n        float cp = cos(phi);\n        vec3 q = p;\n        q.xz = mat2(cp, -sp, sp, cp) * q.xz;\n        q.x -= 0.05;\n        float pd = sdPetal(q, theta);\n        d = min(d, pd);\n    }\n    float center = length(p - vec3(0.0, 0.02, 0.0)) - 0.12;\n    d = min(d, center);\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    vec3 ro = vec3(0.0, 1.1, 1.6);\n    vec3 target = vec3(0.0, 0.05, 0.0);\n    vec3 fwd = normalize(target - ro);\n    vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));\n    vec3 up = cross(right, fwd);\n    vec3 rd = normalize(fwd + uv.x * right + uv.y * up);\n    float t = 0.0;\n    bool hit = false;\n    vec3 p = ro;\n    for (int i = 0; i < 48; i++) {\n        p = ro + rd * t;\n        float d = map(p, bloom);\n        if (d < 0.002) {\n            hit = true;\n            break;\n        }\n        t += d * 0.7;\n        if (t > 6.0) {\n            break;\n        }\n    }\n    vec3 col = mix(vec3(0.02, 0.03, 0.06), vec3(0.05, 0.08, 0.1), uv.y * 0.5 + 0.5);\n    if (hit) {\n        vec2 e = vec2(0.001, 0.0);\n        vec3 nrm = normalize(vec3(\n            map(p + e.xyy, bloom) - map(p - e.xyy, bloom),\n            map(p + e.yxy, bloom) - map(p - e.yxy, bloom),\n            map(p + e.yyx, bloom) - map(p - e.yyx, bloom)\n        ));\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));\n        float diff = max(dot(nrm, lightDir), 0.0);\n        float rIsh = length(p.xz);\n        vec3 petalColor = mix(vec3(0.95, 0.55, 0.65), vec3(0.98, 0.85, 0.9), clamp(rIsh * 1.5, 0.0, 1.0));\n        vec3 centerColor = vec3(0.95, 0.75, 0.2);\n        float isCenter = step(rIsh, 0.13) * step(p.y, 0.06);\n        vec3 baseCol = mix(petalColor, centerColor, isCenter);\n        col = baseCol * (0.3 + 0.7 * diff);\n    }\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 9,
+            "palette": 7,
+            "subject": 9,
+            "total": 25
+          },
+          "critique": "Great blooming motion and clear flower subject; add warmer highlight/gradient variation across petals for richer palette.",
+          "survived": true,
+          "frames": [
+            "2-4-t0.png",
+            "2-4-t1.png",
+            "2-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "concentric bloom rings",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float r = length(uv);\n    float ang = atan(uv.y, uv.x);\n    vec3 col = vec3(0.03, 0.05, 0.04);\n    const int RINGS = 10;\n    float cyc = mod(iTime * 0.15, 2.0);\n    float openAmt = cyc < 1.0 ? cyc : (2.0 - cyc);\n    openAmt = smoothstep(0.0, 1.0, openAmt);\n    for (int i = 0; i < RINGS; i++) {\n        float fi = float(i);\n        float ringPhase = fi / float(RINGS);\n        float active = smoothstep(ringPhase - 0.08, ringPhase + 0.02, openAmt);\n        float petalCount = 5.0;\n        float rotOff = fi * 0.35;\n        float shape = 0.55 + 0.45 * cos(petalCount * (ang + rotOff));\n        float ringR = mix(0.05, 0.55, ringPhase) * shape;\n        float band = smoothstep(ringR + 0.03, ringR - 0.03, r) * active;\n        vec3 tint = palette(ringPhase * 0.5 + 0.15, vec3(0.75, 0.45, 0.55), vec3(0.25, 0.3, 0.3), vec3(0.6, 0.5, 0.5), vec3(0.0, 0.05, 0.1));\n        col = mix(col, tint, band * 0.9);\n    }\n    float centerMask = smoothstep(0.07, 0.02, r) * smoothstep(0.05, 0.3, openAmt);\n    col = mix(col, vec3(0.95, 0.8, 0.25), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "compile_error",
+          "log": "ERROR: 0:17: 'active' : Illegal use of reserved word\nERROR: 0:17: 'active' : syntax error",
+          "scores": null,
+          "critique": "",
+          "survived": false,
+          "frames": []
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "status": "done",
+      "candidates": [
+        {
+          "index": 0,
+          "strategy": "warm petal palette shift",
+          "source": "mat2 rot(float a) {\n    float s = sin(a);\n    float c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nfloat sdPetal(vec3 p, float theta) {\n    p.xy = rot(theta) * p.xy;\n    vec3 s = vec3(0.42, 0.09, 0.16);\n    vec3 q = p / s;\n    return (length(q) - 1.0) * min(min(s.x, s.y), s.z);\n}\n\nfloat map(vec3 p, float bloom) {\n    float d = 1e5;\n    const int N = 6;\n    float theta = mix(1.5708, 0.0, bloom);\n    for (int i = 0; i < N; i++) {\n        float phi = float(i) / float(N) * 6.28318;\n        float sp = sin(phi);\n        float cp = cos(phi);\n        vec3 q = p;\n        q.xz = mat2(cp, -sp, sp, cp) * q.xz;\n        q.x -= 0.05;\n        float pd = sdPetal(q, theta);\n        d = min(d, pd);\n    }\n    float center = length(p - vec3(0.0, 0.02, 0.0)) - 0.12;\n    d = min(d, center);\n    return d;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    vec3 ro = vec3(0.0, 1.1, 1.6);\n    vec3 target = vec3(0.0, 0.05, 0.0);\n    vec3 fwd = normalize(target - ro);\n    vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));\n    vec3 up = cross(right, fwd);\n    vec3 rd = normalize(fwd + uv.x * right + uv.y * up);\n    float t = 0.0;\n    bool hit = false;\n    vec3 p = ro;\n    for (int i = 0; i < 48; i++) {\n        p = ro + rd * t;\n        float d = map(p, bloom);\n        if (d < 0.002) {\n            hit = true;\n            break;\n        }\n        t += d * 0.7;\n        if (t > 6.0) {\n            break;\n        }\n    }\n    vec3 col = mix(vec3(0.02, 0.03, 0.06), vec3(0.05, 0.08, 0.1), uv.y * 0.5 + 0.5);\n    if (hit) {\n        vec2 e = vec2(0.001, 0.0);\n        vec3 nrm = normalize(vec3(\n            map(p + e.xyy, bloom) - map(p - e.xyy, bloom),\n            map(p + e.yxy, bloom) - map(p - e.yxy, bloom),\n            map(p + e.yyx, bloom) - map(p - e.yyx, bloom)\n        ));\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));\n        float diff = max(dot(nrm, lightDir), 0.0);\n        vec3 viewDir = normalize(ro - p);\n        vec3 halfDir = normalize(lightDir + viewDir);\n        float spec = pow(max(dot(nrm, halfDir), 0.0), 24.0);\n        float rIsh = length(p.xz);\n        float ang = atan(p.z, p.x);\n        float petalId = floor((ang / 6.28318) * 6.0 + 0.5);\n        float hueShift = fract(petalId * 0.15);\n        vec3 warmA = palette(hueShift, vec3(0.9, 0.5, 0.4), vec3(0.15, 0.25, 0.3), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.1, 0.2));\n        vec3 tipWarm = vec3(1.0, 0.75, 0.35);\n        vec3 petalColor = mix(warmA, tipWarm, smoothstep(0.05, 0.42, rIsh));\n        petalColor = mix(vec3(0.98, 0.9, 0.92), petalColor, clamp(rIsh * 2.0, 0.0, 1.0));\n        vec3 centerColor = vec3(0.95, 0.75, 0.2);\n        float isCenter = step(rIsh, 0.13) * step(p.y, 0.06);\n        vec3 baseCol = mix(petalColor, centerColor, isCenter);\n        col = baseCol * (0.3 + 0.7 * diff) + spec * 0.5 * vec3(1.0, 0.85, 0.6);\n    }\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 9,
+            "palette": 6,
+            "subject": 9,
+            "total": 24
+          },
+          "critique": "Petals open convincingly; add natural color variation, current gold/skin tones read metallic not floral.",
+          "survived": true,
+          "frames": [
+            "3-0-t0.png",
+            "3-0-t1.png",
+            "3-0-t2.png"
+          ]
+        },
+        {
+          "index": 1,
+          "strategy": "sunset fresnel petals",
+          "source": "mat2 rot(float a) {\n    float s = sin(a);\n    float c = cos(a);\n    return mat2(c, -s, s, c);\n}\n\nfloat sdPetal(vec3 p, float theta) {\n    p.xy = rot(theta) * p.xy;\n    vec3 s = vec3(0.42, 0.09, 0.16);\n    vec3 q = p / s;\n    return (length(q) - 1.0) * min(min(s.x, s.y), s.z);\n}\n\nfloat hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat map(vec3 p, float bloom) {\n    float d = 1e5;\n    const int N = 6;\n    float theta = mix(1.5708, 0.0, bloom);\n    for (int i = 0; i < N; i++) {\n        float phi = float(i) / float(N) * 6.28318;\n        float sp = sin(phi);\n        float cp = cos(phi);\n        vec3 q = p;\n        q.xz = mat2(cp, -sp, sp, cp) * q.xz;\n        q.x -= 0.05;\n        float pd = sdPetal(q, theta);\n        d = min(d, pd);\n    }\n    float center = length(p - vec3(0.0, 0.02, 0.0)) - 0.12;\n    d = min(d, center);\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n    vec3 ro = vec3(0.0, 1.1, 1.6);\n    vec3 target = vec3(0.0, 0.05, 0.0);\n    vec3 fwd = normalize(target - ro);\n    vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));\n    vec3 up = cross(right, fwd);\n    vec3 rd = normalize(fwd + uv.x * right + uv.y * up);\n    float t = 0.0;\n    bool hit = false;\n    vec3 p = ro;\n    for (int i = 0; i < 48; i++) {\n        p = ro + rd * t;\n        float d = map(p, bloom);\n        if (d < 0.002) {\n            hit = true;\n            break;\n        }\n        t += d * 0.7;\n        if (t > 6.0) {\n            break;\n        }\n    }\n    float skyMix = uv.y * 0.5 + 0.5;\n    vec3 col = mix(vec3(0.08, 0.04, 0.1), vec3(0.35, 0.15, 0.2) + 0.05 * sin(iTime * 0.2), skyMix);\n    if (hit) {\n        vec2 e = vec2(0.001, 0.0);\n        vec3 nrm = normalize(vec3(\n            map(p + e.xyy, bloom) - map(p - e.xyy, bloom),\n            map(p + e.yxy, bloom) - map(p - e.yxy, bloom),\n            map(p + e.yyx, bloom) - map(p - e.yyx, bloom)\n        ));\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));\n        float diff = max(dot(nrm, lightDir), 0.0);\n        vec3 viewDir = normalize(ro - p);\n        float fresnel = pow(1.0 - max(dot(nrm, viewDir), 0.0), 3.0);\n        float rIsh = length(p.xz);\n        float ang = atan(p.z, p.x);\n        float grain = hash21(floor(vec2(ang * 8.0, rIsh * 20.0)));\n        vec3 innerWarm = vec3(0.98, 0.65, 0.35);\n        vec3 outerCool = vec3(0.85, 0.35, 0.55);\n        vec3 petalColor = mix(innerWarm, outerCool, smoothstep(0.02, 0.4, rIsh));\n        petalColor = mix(petalColor, petalColor * 1.15, grain * 0.3);\n        petalColor += fresnel * vec3(1.0, 0.7, 0.3) * 0.6;\n        vec3 centerColor = vec3(0.95, 0.75, 0.2);\n        float isCenter = step(rIsh, 0.13) * step(p.y, 0.06);\n        vec3 baseCol = mix(petalColor, centerColor, isCenter);\n        col = baseCol * (0.35 + 0.65 * diff);\n    }\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 8,
+            "palette": 7,
+            "subject": 9,
+            "total": 24
+          },
+          "critique": "Great bloom motion; warm the petal hues toward more natural floral pink/red variation, less uniform magenta.",
+          "survived": true,
+          "frames": [
+            "3-1-t0.png",
+            "3-1-t1.png",
+            "3-1-t2.png"
+          ]
+        },
+        {
+          "index": 2,
+          "strategy": "hued sector depth shading",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat sdPetals(vec2 uv, float bloom) {\n    const int PETALS = 6;\n    float d = 1e5;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        p.y -= mix(0.03, 0.3, bloom) * 0.5;\n        vec2 q = vec2(p.x / mix(0.04, 0.12, bloom), p.y / mix(0.06, 0.32, bloom));\n        d = min(d, length(q) - 0.5);\n    }\n    return d;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.05, 0.07, 0.05);\n    const int TRAILS = 6;\n    for (int i = 0; i < TRAILS; i++) {\n        float fi = float(i);\n        float ti = iTime - fi * 0.12;\n        float bloom = clamp(0.5 + 0.5 * sin(ti * 0.4), 0.0, 1.0);\n        bloom = smoothstep(0.0, 1.0, bloom);\n        float d = sdPetals(uv, bloom);\n        float fill = smoothstep(0.02, -0.02, d);\n\n        float e = 0.01;\n        float dx = sdPetals(uv + vec2(e, 0.0), bloom) - sdPetals(uv - vec2(e, 0.0), bloom);\n        float dy = sdPetals(uv + vec2(0.0, e), bloom) - sdPetals(uv - vec2(0.0, e), bloom);\n        vec3 nrm = normalize(vec3(dx, dy, e * 2.0));\n        vec3 lightDir = normalize(vec3(0.4, 0.6, 0.7));\n        float shade = 0.4 + 0.6 * max(dot(nrm, lightDir), 0.0);\n\n        float ang = atan(uv.y, uv.x);\n        float sector = floor((ang + 3.14159) / 6.28318 * 6.0);\n        float hue = fract(sector / 6.0 + ti * 0.02);\n        vec3 hueCol = palette(hue, vec3(0.8, 0.4, 0.5), vec3(0.2, 0.35, 0.3), vec3(1.0, 1.0, 0.6), vec3(0.0, 0.15, 0.3));\n        vec3 tint = mix(hueCol, vec3(1.0, 0.9, 0.93), bloom * 0.5);\n        tint *= shade;\n\n        float fade = 1.0 - fi / float(TRAILS);\n        col = mix(col, tint, fill * fade * 0.6);\n    }\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.05, r);\n    col = mix(col, vec3(0.95, 0.8, 0.25), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 6,
+            "subject": 8,
+            "total": 19
+          },
+          "critique": "Reads as flower, but petal opening motion is too subtle; increase radial expansion amplitude over time.",
+          "survived": false,
+          "frames": [
+            "3-2-t0.png",
+            "3-2-t1.png",
+            "3-2-t2.png"
+          ]
+        },
+        {
+          "index": 3,
+          "strategy": "per-petal id shading",
+          "source": "vec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvec2 sdPetalsId(vec2 uv, float bloom) {\n    const int PETALS = 6;\n    float d = 1e5;\n    float id = 0.0;\n    for (int i = 0; i < PETALS; i++) {\n        float ang = float(i) / float(PETALS) * 6.28318;\n        float s = sin(ang);\n        float c = cos(ang);\n        vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n        p.y -= mix(0.03, 0.3, bloom) * 0.5;\n        vec2 q = vec2(p.x / mix(0.04, 0.12, bloom), p.y / mix(0.06, 0.32, bloom));\n        float dd = length(q) - 0.5;\n        if (dd < d) {\n            d = dd;\n            id = float(i);\n        }\n    }\n    return vec2(d, id);\n}\n\nfloat sdPetals(vec2 uv, float bloom) {\n    return sdPetalsId(uv, bloom).x;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec3 col = vec3(0.05, 0.07, 0.05);\n    const int TRAILS = 6;\n    for (int i = 0; i < TRAILS; i++) {\n        float fi = float(i);\n        float ti = iTime - fi * 0.12;\n        float bloom = clamp(0.5 + 0.5 * sin(ti * 0.4), 0.0, 1.0);\n        bloom = smoothstep(0.0, 1.0, bloom);\n        vec2 di = sdPetalsId(uv, bloom);\n        float d = di.x;\n        float fill = smoothstep(0.02, -0.02, d);\n\n        float e = 0.015;\n        float dGrad = sdPetals(uv + vec2(e, e), bloom) - sdPetals(uv - vec2(e, e), bloom);\n        float depthShade = 0.5 + 0.5 * clamp(dGrad * 8.0, -1.0, 1.0);\n\n        float hue = fract(di.y / 6.0 * 0.6 + 0.05);\n        vec3 tintA = palette(hue, vec3(0.75, 0.35, 0.45), vec3(0.25, 0.3, 0.25), vec3(1.0, 0.8, 0.6), vec3(0.0, 0.2, 0.4));\n        vec3 tint = mix(tintA, vec3(1.0, 0.9, 0.93), bloom * 0.4);\n        tint *= (0.5 + 0.5 * depthShade);\n\n        float fade = 1.0 - fi / float(TRAILS);\n        col = mix(col, tint, fill * fade * 0.6);\n    }\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.05, r);\n    col = mix(col, vec3(0.95, 0.8, 0.25), centerMask);\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 1,
+            "palette": 7,
+            "subject": 5,
+            "total": 13
+          },
+          "critique": "Flower shape reads well but petals stay fully open and static; animate radial opening from bud to bloom.",
+          "survived": false,
+          "frames": [
+            "3-3-t0.png",
+            "3-3-t1.png",
+            "3-3-t2.png"
+          ]
+        },
+        {
+          "index": 4,
+          "strategy": "polar warp fbm petals",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.35));\n\n    float r = length(uv);\n    float theta = atan(uv.y, uv.x);\n    float n = 6.0;\n\n    vec2 warp = vec2(fbm(uv * 3.0 + iTime * 0.05), fbm(uv * 3.0 - iTime * 0.04));\n    float warpedTheta = theta + 0.15 * (warp.x - 0.5) * bloom;\n\n    float petalShape = pow(abs(cos(n * 0.5 * warpedTheta)), 0.5 + 1.5 * (1.0 - bloom));\n    float rMax = mix(0.06, 0.42, bloom) * (0.7 + 0.5 * petalShape);\n\n    float d = r - rMax;\n    float fill = smoothstep(0.015, -0.015, d);\n\n    float depthGrad = clamp((rMax - r) / max(rMax, 0.001), 0.0, 1.0);\n    float tex = fbm(uv * 8.0 + warp * 2.0);\n    float hue = fract(0.02 * theta + depthGrad * 0.3 + tex * 0.15);\n    vec3 petalCol = palette(hue, vec3(0.85, 0.45, 0.4), vec3(0.15, 0.3, 0.35), vec3(1.0, 1.0, 0.7), vec3(0.0, 0.1, 0.35));\n    petalCol = mix(petalCol * 0.6, petalCol, depthGrad);\n\n    vec3 centerCol = vec3(0.95, 0.72, 0.2) * (0.8 + 0.4 * tex);\n    float centerMask = smoothstep(0.09, 0.03, r) * (0.3 + 0.7 * bloom);\n    vec3 flowerCol = mix(petalCol, centerCol, centerMask);\n\n    vec3 bg = mix(vec3(0.04, 0.06, 0.05), vec3(0.08, 0.1, 0.08), 0.5 + 0.5 * uv.y);\n    vec3 col = mix(bg, flowerCol, fill);\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 6,
+            "subject": 7,
+            "total": 18
+          },
+          "critique": "Petals barely grow between frames; increase scale/rotation delta so blooming reads as motion, and fix the horizontal seam artifact.",
+          "survived": false,
+          "frames": [
+            "3-4-t0.png",
+            "3-4-t1.png",
+            "3-4-t2.png"
+          ]
+        },
+        {
+          "index": 5,
+          "strategy": "voronoi layered bloom",
+          "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec2 hash22(vec2 p) {\n    return vec2(hash21(p), hash21(p + 17.17));\n}\n\nfloat voronoi(vec2 p) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minD = 1.5;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 neighbor = vec2(float(x), float(y));\n            vec2 point = hash22(ip + neighbor);\n            vec2 diff = neighbor + point - fp;\n            minD = min(minD, length(diff));\n        }\n    }\n    return minD;\n}\n\nfloat petalMask(vec2 uv, float rot, float len, float wid) {\n    float s = sin(rot);\n    float c = cos(rot);\n    vec2 p = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);\n    p.y -= len * 0.5;\n    vec2 q = vec2(p.x / wid, p.y / len);\n    float d = length(q) - 0.5;\n    return smoothstep(0.04, -0.04, d);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float bloom = smoothstep(0.0, 1.0, 0.5 + 0.5 * sin(iTime * 0.3));\n\n    vec3 col = mix(vec3(0.03, 0.05, 0.04), vec3(0.07, 0.09, 0.07), 0.5 + 0.5 * uv.y);\n\n    const int LAYERS = 5;\n    const int PETALS = 6;\n    for (int L = 0; L < LAYERS; L++) {\n        float fl = float(L);\n        float layerBloom = clamp(bloom * float(LAYERS) - fl, 0.0, 1.0);\n        layerBloom = smoothstep(0.0, 1.0, layerBloom);\n        if (layerBloom <= 0.001) continue;\n\n        float len = mix(0.05, 0.38, layerBloom) * (1.0 - fl * 0.08);\n        float wid = mix(0.03, 0.1, layerBloom);\n        float ringRot = fl * 0.35 + iTime * 0.05;\n\n        for (int i = 0; i < PETALS; i++) {\n            float ang = float(i) / float(PETALS) * 6.28318 + ringRot;\n            float m = petalMask(uv, ang, len, wid);\n            if (m <= 0.001) continue;\n\n            vec2 local = uv * (3.0 + fl) + vec2(fl * 5.0, ang * 2.0);\n            float vc = voronoi(local);\n            float hue = fract(0.55 + fl * 0.05 - vc * 0.2);\n            vec3 petalCol = mix(vec3(0.9, 0.3, 0.45), vec3(1.0, 0.85, 0.55), hue);\n            petalCol *= 0.7 + 0.3 * (1.0 - vc);\n\n            col = mix(col, petalCol, m * layerBloom * 0.85);\n        }\n    }\n\n    float r = length(uv);\n    float centerMask = smoothstep(0.1, 0.04, r) * bloom;\n    col = mix(col, vec3(0.95, 0.78, 0.25), centerMask);\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+          "status": "scored",
+          "log": "",
+          "scores": {
+            "flat": false,
+            "motion": 5,
+            "palette": 7,
+            "subject": 8,
+            "total": 20
+          },
+          "critique": "Bloom motion too subtle; petals should visibly unfurl/rotate outward over time, not just barely grow.",
+          "survived": false,
+          "frames": [
+            "3-5-t0.png",
+            "3-5-t1.png",
+            "3-5-t2.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -75,6 +75,7 @@ const localSink = () => {
         setCandidateScores: async (id, scores, critique) => local.setCandidateScoresLocal(id, scores, critique),
         markSurvivors: async (ids) => local.markSurvivorsLocal(ids),
         where: (id) => local.localRunPath(id),
+        getRun: async () => null,
     };
 };
 const convexSink = () => ({
@@ -98,6 +99,7 @@ const convexSink = () => ({
         await convex.markSurvivors(ids);
     },
     where: () => "the live site",
+    getRun: (id) => convex.getRun(id),
 });
 const sink = () => ((0, exports.mode)() === "convex" ? convexSink() : localSink());
 exports.sink = sink;

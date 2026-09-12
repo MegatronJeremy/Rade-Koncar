@@ -44,6 +44,8 @@ export interface Sink {
   markSurvivors(ids: string[]): Promise<void>;
   /** Where to look when it finishes. */
   where(runId: string): string;
+  /** Null on the local sink: resuming reads from Convex, which local has none of. */
+  getRun(runId: string): Promise<convex.StoredRun | null>;
 }
 
 const localSink = (): Sink => {
@@ -64,6 +66,7 @@ const localSink = (): Sink => {
       local.setCandidateScoresLocal(id, scores, critique),
     markSurvivors: async (ids) => local.markSurvivorsLocal(ids),
     where: (id) => local.localRunPath(id),
+    getRun: async () => null,
   };
 };
 
@@ -88,6 +91,7 @@ const convexSink = (): Sink => ({
     await convex.markSurvivors(ids);
   },
   where: () => "the live site",
+  getRun: (id) => convex.getRun(id),
 });
 
 export const sink = (): Sink => (mode() === "convex" ? convexSink() : localSink());

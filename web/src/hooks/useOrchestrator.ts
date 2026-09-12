@@ -56,6 +56,10 @@ export const useOrchestrator = (): {
   /** The prompt already running service-wide, if any. Only one run at a time. */
   readonly running: string | undefined;
   readonly submit: (prompt: string) => Promise<string | undefined>;
+  /** One more round on an existing run. Rounds are asked for, not assumed. */
+  readonly continueRun: (runId: string) => Promise<void>;
+  /** Takes effect before the next candidate renders, so within seconds. */
+  readonly stop: (runId: string) => Promise<void>;
 } => {
   const base = configured();
   const [state, setState] = useState<OrchestratorState>(
@@ -142,5 +146,36 @@ export const useOrchestrator = (): {
     [base],
   );
 
-  return { state, running, submit };
+  const post = useCallback(
+    async (path: string, payload: Record<string, unknown>): Promise<Response> => {
+      if (base === undefined) throw new Error("No orchestrator configured");
+      const res = await fetch(`${base}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      console.info(`[orchestrator] POST ${path} ${res.status}`);
+      return res;
+    },
+    [base],
+  );
+
+  const continueRun = useCallback(
+    async (runId: string): Promise<void> => {
+      const res = await post("/continue", { runId });
+      if (res.status === 429) throw new BusyError(undefined);
+      if (!res.ok) throw new Error(`Could not continue: ${res.status}`);
+    },
+    [post],
+  );
+
+  const stop = useCallback(
+    async (runId: string): Promise<void> => {
+      const res = await post("/stop", { runId });
+      if (!res.ok) throw new Error(`Could not stop: ${res.status}`);
+    },
+    [post],
+  );
+
+  return { state, running, submit, continueRun, stop };
 };

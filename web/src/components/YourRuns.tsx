@@ -4,6 +4,10 @@ interface YourRunsProps {
   readonly runs: readonly Run[];
   readonly selectedId: string | undefined;
   readonly onPick: (runId: string) => void;
+  readonly onContinue: (runId: string) => void;
+  readonly onStop: (runId: string) => void;
+  /** Another run holds the sandboxes, so neither action can start now. */
+  readonly blocked: boolean;
 }
 
 const bestOf = (run: Run, index: number): number =>
@@ -24,7 +28,14 @@ const when = (ms: number): string => {
  * The visitor's own runs, kept in this browser. Nobody else's appear here and
  * theirs never appear anywhere else: a run belongs to whoever asked for it.
  */
-export const YourRuns = ({ runs, selectedId, onPick }: YourRunsProps): React.JSX.Element | null => {
+export const YourRuns = ({
+  runs,
+  selectedId,
+  onPick,
+  onContinue,
+  onStop,
+  blocked,
+}: YourRunsProps): React.JSX.Element | null => {
   if (runs.length === 0) return null;
 
   return (
@@ -36,7 +47,7 @@ export const YourRuns = ({ runs, selectedId, onPick }: YourRunsProps): React.JSX
           const gain = bestOf(run, last) - bestOf(run, 0);
           const working = run.status === "queued" || run.status === "running";
           return (
-            <li key={run.id}>
+            <li key={run.id} className="yours-item">
               <button
                 type="button"
                 className={`yours-row${run.id === selectedId ? " is-active" : ""}`}
@@ -54,13 +65,30 @@ export const YourRuns = ({ runs, selectedId, onPick }: YourRunsProps): React.JSX
                     <span className="yours-failed">stopped</span>
                   ) : (
                     <>
-                      <span>{run.generations.length} rounds</span>
+                      <span>
+                        {run.generations.length} round{run.generations.length === 1 ? "" : "s"}
+                      </span>
                       {gain > 0 ? <b>+{gain}</b> : null}
                     </>
                   )}
                   <span className="yours-when">{when(run.createdAt)}</span>
                 </span>
               </button>
+              {working ? (
+                <button type="button" className="yours-act" onClick={() => onStop(run.id)}>
+                  Stop
+                </button>
+              ) : run.status === "done" ? (
+                <button
+                  type="button"
+                  className="yours-act is-go"
+                  onClick={() => onContinue(run.id)}
+                  disabled={blocked}
+                  title={blocked ? "Another run is using the sandboxes" : "Run one more round"}
+                >
+                  Another round
+                </button>
+              ) : null}
             </li>
           );
         })}

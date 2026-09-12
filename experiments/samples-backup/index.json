@@ -1,0 +1,29 @@
+{
+  "exportedAt": "2026-09-12T15:02:53.712Z",
+  "samples": [
+    {
+      "dir": "a-flower-blooming-petals-opening",
+      "prompt": "a flower blooming, petals opening",
+      "rounds": 3,
+      "frames": 51
+    },
+    {
+      "dir": "a-single-eye-slowly-blinking",
+      "prompt": "a single eye slowly blinking",
+      "rounds": 3,
+      "frames": 54
+    },
+    {
+      "dir": "a-black-hole-with-a-glowing-accretion-disk",
+      "prompt": "a black hole with a glowing accretion disk",
+      "rounds": 3,
+      "frames": 54
+    },
+    {
+      "dir": "a-candle-flame-flickering-in-the-dark",
+      "prompt": "a candle flame flickering in the dark",
+      "rounds": 3,
+      "frames": 54
+    }
+  ]
+}

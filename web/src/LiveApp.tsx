@@ -169,6 +169,9 @@ export const LiveApp = (): React.JSX.Element => {
         ids={mineIds}
         selectedId={chosen?.id}
         onPick={setChosenId}
+        onContinue={(id) => void orchestrator.continueRun(id).catch(() => undefined)}
+        onStop={(id) => void orchestrator.stop(id).catch(() => undefined)}
+        blocked={liveRunning}
         onLoaded={setMyRuns}
       />
       <SampleGallery

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isStopping = exports.requestStop = void 0;
 exports.applyRankOrder = applyRankOrder;
 exports.runOnce = runOnce;
 const llm_1 = require("./llm");
@@ -128,11 +129,40 @@ async function reportImprovement(prompt, first, last) {
     }
 }
 /** One prompt, three generations, six candidates each. */
+/* ------------------------------------------------------------------ *
+ * Stopping
+ *
+ * A round holds every sandbox for minutes, and with one run at a time a
+ * mistyped prompt blocks everyone until it finishes. Restarting the service
+ * was the only remedy and it kills everyone else's work too.
+ *
+ * Checked before each candidate renders rather than only between rounds, so a
+ * stop takes seconds instead of up to ninety. Knowing the run id is the
+ * permission: a browser only ever knows its own.
+ * ------------------------------------------------------------------ */
+const stopping = new Set();
+const requestStop = (runId) => {
+    stopping.add(runId);
+    return true;
+};
+exports.requestStop = requestStop;
+const isStopping = (runId) => stopping.has(runId);
+exports.isStopping = isStopping;
+class Stopped extends Error {
+    constructor() {
+        super("stopped");
+    }
+}
+const checkStop = (runId) => {
+    if (stopping.has(runId))
+        throw new Stopped();
+};
 async function runOnce(prompt, 
 /** Called as soon as the run exists, so a caller can answer with its id. */
-onCreated) {
+onCreated, opts = {}) {
     const out = (0, sink_1.sink)();
-    const runId = await out.createRun(prompt);
+    const rounds = opts.rounds ?? GENS;
+    const runId = opts.resume ?? (await out.createRun(prompt));
     onCreated?.(runId);
     const render = await (0, sink_1.renderer)();
     /*
@@ -162,11 +192,45 @@ onCreated) {
     /** Best candidate of the run so far. Never dropped from the parent set. */
     let champion;
     let firstBest;
+    let startGen = 1;
     try {
+        /*
+         * A resumed round rebuilds its parents from Convex rather than from memory.
+         * Everything it needs is already stored: the sources, the critiques, the
+         * scores and the survived flags. Rank is recomputed from the scores, since
+         * only the plain total is persisted.
+         */
+        if (opts.resume !== undefined) {
+            const stored = await out.getRun(runId);
+            if (stored === null)
+                throw new Error(`run ${runId} not found`);
+            startGen = stored.generations.length + 1;
+            const asLive = (c) => ({
+                candidate: { strategy: c.strategy, source: c.source },
+                index: c.index,
+                id: c.id,
+                total: c.scores?.total ?? 0,
+                rank: c.scores === undefined || c.scores.flat
+                    ? 0
+                    : (0, score_1.rankingScore)(c.scores.palette, c.scores.motion, c.scores.subject),
+                critique: c.critique ?? "",
+                framePaths: [],
+            });
+            const all = stored.generations.flatMap((g) => g.candidates).map(asLive);
+            champion = all.reduce((best, c) => (best === undefined || c.rank > best.rank ? c : best), undefined);
+            firstBest = (stored.generations[0]?.candidates ?? []).map(asLive).reduce((best, c) => (best === undefined || c.rank > best.rank ? c : best), undefined);
+            parents = all
+                .filter((c) => stored.generations.some((g) => g.candidates.some((s) => s.id === c.id && s.survived)))
+                .sort((a, b) => b.rank - a.rank)
+                .slice(0, SURVIVORS);
+            if (parents.length === 0 && champion !== undefined)
+                parents = [champion];
+        }
         await out.setRunStatus(runId, "running");
-        for (let gen = 1; gen <= GENS; gen++) {
+        for (let gen = startGen; gen < startGen + rounds; gen++) {
+            checkStop(runId);
             const generationId = await out.createGeneration(runId, gen);
-            const candidates = gen === 1
+            const candidates = parents.length === 0
                 ? await (0, llm_1.generateCandidates)(prompt)
                 : await (0, llm_1.mutateCandidates)(prompt, parents.map((p) => ({ source: p.candidate.source, critique: p.critique, total: p.total })));
             const parentIds = parents.map((p) => p.id);
@@ -175,7 +239,7 @@ onCreated) {
                 index: i,
                 id: await out.createCandidate({
                     runId, generationId, index: i, strategy: c.strategy, source: c.source,
-                    parentIds: gen === 1 ? [] : parentIds,
+                    parentIds,
                 }),
                 total: 0,
                 rank: 0,
@@ -185,6 +249,7 @@ onCreated) {
             // Every candidate renders, queued through the pool.
             await render.each(live, async (l, i, renderOne) => {
                 {
+                    checkStop(runId);
                     await out.setCandidateStatus(l.id, "rendering");
                     try {
                         const r = await renderOne(`g${gen}c${i}`, l.candidate.source);
@@ -202,6 +267,7 @@ onCreated) {
                     }
                 }
             });
+            checkStop(runId);
             // Score only what rendered. A failed shader is content, not an exception.
             await Promise.all(live.map(async (l) => {
                 if (l.rendered?.result.status !== "ok")
@@ -231,15 +297,24 @@ onCreated) {
             if (parents.length === 0)
                 break;
         }
-        await reportImprovement(prompt, firstBest, champion);
+        // Only worth saying once there is a last round to compare against the first.
+        if (startGen + rounds > GENS)
+            await reportImprovement(prompt, firstBest, champion);
         await out.setRunStatus(runId, "done");
         return runId;
     }
     catch (err) {
+        // A stop is an outcome, not a crash: the rounds already finished stay
+        // readable, and the row reads "stopped" rather than throwing at the caller.
         await out.setRunStatus(runId, "failed");
+        if (err instanceof Stopped) {
+            console.log(`[run ${runId}] stopped`);
+            return runId;
+        }
         throw err;
     }
     finally {
+        stopping.delete(runId);
         process.off("SIGINT", onSignal);
         process.off("SIGTERM", onSignal);
         await render.dispose();
