@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.weightedTotal = void 0;
 exports.stddev = stddev;
 exports.motion = motion;
 exports.scoreCandidate = scoreCandidate;
@@ -11,6 +12,19 @@ const llm_1 = require("./llm");
 /** Contract 4 thresholds. Tuned against fixtures, not against a theory. */
 const FLAT_STDDEV = 0.02;
 const MOTION_MIN = 0.01;
+/**
+ * Subject carries double weight, palette and motion three quarters each, so the
+ * total still tops out at 30 and the UI's `/ 30` stays true.
+ *
+ * An equal sum lets palette and motion outvote subject, and subject is where
+ * candidates actually fail: across the 48 in experiments/003 the breakdown was
+ * 24 unrecognisable, 9 static, 2 blank. Equal weighting scores a beautiful
+ * nebula 10/10/0 = 20 above a scruffy but correct wool texture at 5/5/9 = 19,
+ * which is the exact inversion `rubric.md` tells the model to avoid.
+ */
+const WEIGHT = { palette: 0.75, motion: 0.75, subject: 1.5 };
+const weightedTotal = (palette, motionScore, subject) => Math.round(WEIGHT.palette * palette + WEIGHT.motion * motionScore + WEIGHT.subject * subject);
+exports.weightedTotal = weightedTotal;
 const luminance = (p) => {
     const v = new Float64Array(p.width * p.height);
     for (let i = 0, j = 0; i < p.data.length; i += 4, j++) {
@@ -30,15 +44,26 @@ function stddev(t1) {
         acc += (x - mean) ** 2;
     return Math.sqrt(acc / v.length);
 }
-/** Mean absolute channel difference between t0 and t2. Catches a still image. */
-function motion(t0, t2) {
-    const a = pngjs_1.PNG.sync.read(t0).data;
-    const b = pngjs_1.PNG.sync.read(t2).data;
+const meanAbsDiff = (x, y) => {
+    const a = pngjs_1.PNG.sync.read(x).data;
+    const b = pngjs_1.PNG.sync.read(y).data;
     let diff = 0;
     for (let i = 0; i < a.length; i += 4) {
         diff += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
     }
     return diff / ((a.length / 4) * 3 * 255);
+};
+/**
+ * Largest mean absolute channel difference across the three frames. Comparing
+ * only t0 to t2 calls anything whose period divides two seconds motionless,
+ * because it has returned to where it started. A pendulum is the obvious case.
+ *
+ * Measured over the 48 candidates in experiments/003 this rescues none of them,
+ * so it is closing a hole rather than fixing observed damage. It costs one more
+ * pass over frames already in memory.
+ */
+function motion(t0, t1, t2) {
+    return Math.max(meanAbsDiff(t0, t1), meanAbsDiff(t1, t2), meanAbsDiff(t0, t2));
 }
 /**
  * Prefilter first, vision only on what survives it. The two questions a vision
@@ -53,7 +78,7 @@ async function scoreCandidate(prompt, r) {
         return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "no frames" };
     }
     const sd = stddev(t1);
-    const md = motion(t0, t2);
+    const md = motion(t0, t1, t2);
     if (sd < FLAT_STDDEV) {
         return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "renders flat" };
     }
@@ -71,7 +96,7 @@ async function scoreCandidate(prompt, r) {
             motion: motionScore,
             palette: v.palette,
             subject: v.subject,
-            total: v.palette + motionScore + v.subject,
+            total: (0, exports.weightedTotal)(v.palette, motionScore, v.subject),
         },
         critique: v.critique,
     };

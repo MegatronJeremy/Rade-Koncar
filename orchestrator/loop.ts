@@ -15,6 +15,27 @@ interface Live {
   critique: string;
 }
 
+/**
+ * Best candidate, then the best one that took a different approach.
+ *
+ * Two survivors exist so that a leading approach turning out to be a dead end
+ * still leaves something to fall back on. Taking the top two by score alone
+ * loses that whenever the top two share a strategy, which is common once a
+ * generation is already mutations of one parent: the population collapses to a
+ * single lineage exactly when the second lineage is most needed.
+ *
+ * Falls back to plain top-two when every survivor candidate shares a strategy.
+ */
+function pickSurvivors(live: readonly Live[]): Live[] {
+  const ranked = [...live].filter((l) => l.total > 0).sort((a, b) => b.total - a.total);
+  const best = ranked[0];
+  if (best === undefined) return [];
+
+  const different = ranked.find((l) => l.candidate.strategy !== best.candidate.strategy);
+  const second = different ?? ranked[1];
+  return second === undefined ? [best] : [best, second].slice(0, SURVIVORS);
+}
+
 /** One prompt, three generations, six candidates each. */
 export async function runOnce(prompt: string): Promise<store.RunId> {
   const runId = await store.createRun(prompt);
@@ -78,8 +99,7 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
         }),
       );
 
-      const ranked = [...live].sort((a, b) => b.total - a.total);
-      parents = ranked.slice(0, SURVIVORS).filter((l) => l.total > 0);
+      parents = pickSurvivors(live);
       if (parents.length > 0) await store.markSurvivors(parents.map((p) => p.id));
       await store.setGenerationStatus(generationId, "done");
 
