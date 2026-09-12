@@ -22,21 +22,54 @@ If the harness tab is not ready, paste into Shadertoy instead. Same test, same c
 
 The live list. `experiments/002-oneshot-sonnet-5` holds the runs.
 
-| # | Prompt | Acceptable / 6 | Notes |
-|---|---|---|---|
-| 1 | a red ball bouncing on a white floor | | |
-| 2 | an analog clock with a sweeping second hand | | |
-| 3 | snow falling and settling into a pile | | |
-| 4 | a candle flame flickering in the dark | | |
-| 5 | a pendulum swinging back and forth | | |
+`002-oneshot-sonnet-5`, `claude-sonnet-5`, five concrete prompts. 30 candidates,
+30 rendered, zero compile errors and zero timeouts. With the Shadertoy convention
+and the helper block in `codegen.md`, the model essentially never writes GLSL that
+fails to compile, so the loop's job is fixing wrong output rather than broken code.
+
+Counts are acceptable-by-eye out of six: not blank, it moves, a stranger would
+match it to the words.
+
+| Prompt | Acceptable / 6 | Notes |
+|---|---|---|
+| a red ball bouncing on a white floor | 5 | **Reject, too easy.** Shape and bounce right nearly every time. Quibbles only: one odd angle, one over-squashed, one with unexplained floor dots |
+| a candle flame flickering in the dark | 1 | **Keep.** Most do not read as fire at all; one clear best, the rest strange or flame-shaped wrong |
+| an analog clock with a sweeping second hand | most | **Reject, too simple** |
+| snow falling and settling into a pile | most | **Reject, too simple** |
+| a pendulum swinging back and forth | most | **Reject.** Passable, simple |
+
+### The prediction that was wrong
+
+`demo-candidates.md` expected the ball to hover, drift or fall through the floor.
+It does none of those. Bouncing a circle on a line over `iTime` is a well-trodden
+shader exercise and the model has it. What actually discriminates is whether the
+subject has a *shape the model must invent*: a flame is not a primitive, so it
+fails, while a ball is a signed-distance circle.
+
+That is the rule for picking prompts, not "is the motion complex".
+
+Four of the five are too easy, and every one of them is assembled from
+primitives: a ball is a signed-distance circle, a pendulum a circle on a line, a
+clock lines rotating about a point, snow dots falling. The model has all of those
+and combines them correctly on the first attempt.
+
+The candle is the only one where the subject has no primitive behind it. There is
+no `flame()`, so the silhouette has to be invented, and one-shot invents it badly.
+Accumulation and timing turned out not to matter: snow accumulates and passes,
+the clock keeps three rates and passes.
+
+**Pick prompts whose subject the model must invent the shape of.** Next
+candidates by that rule, none tested: smoke rising from a cigarette, a lightning
+bolt striking, an eye blinking, a butterfly flapping its wings.
 
 ## Decision
 
-Three demo prompts, chosen at roughly two of six:
+**Demo prompt: a candle flame flickering in the dark.** One of six acceptable
+one-shot, the only prompt of ten tested that discriminates.
 
-1.
-2.
-3.
+Backups by the invented-shape rule, untested: smoke rising from a cigarette, a
+lightning bolt striking, an eye blinking. Test these only if the candle's
+three-generation run does not show a visible gap between round 1 and round 3.
 
 Reference mode becomes core only if one-shot scored five or six on everything, which would mean text prompts are not discriminating and the target needs to be an image instead.
 

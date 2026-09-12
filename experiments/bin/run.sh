@@ -28,12 +28,25 @@ echo "Write six shaders for: $PROMPT" | claude -p \
   > "$OUT/envelope.json"
 
 GEN=$(( $(date +%s) - t0 ))
+# claude can exit 0 having written nothing, which happens when a second claude
+# process is running against the same session. Without this the empty file
+# parses to zero candidates, jq writes "null" into c0.glsl, and the run reports
+# six identical compile errors that look like a codegen problem.
+if [ ! -s "$OUT/envelope.json" ]; then
+  echo "[$EXP/$SLUG] FAILED: claude wrote nothing. Is another claude process running?" >&2
+  exit 1
+fi
+
 echo "[$EXP/$SLUG] generated in ${GEN}s"
 jq -r '.modelUsage // {} | to_entries[] | "[cost] \(.key): $\(.value.costUSD // 0) in=\(.value.inputTokens // 0) out=\(.value.outputTokens // 0)"' \
   "$OUT/envelope.json" 2>/dev/null || true
 
 jq -r '.structured_output // (.result|fromjson)' "$OUT/envelope.json" > "$OUT/cands.json"
-N=$(jq '.candidates|length' "$OUT/cands.json")
+N=$(jq '.candidates|length' "$OUT/cands.json" 2>/dev/null || echo 0)
+if [ "$N" -lt 1 ]; then
+  echo "[$EXP/$SLUG] FAILED: no candidates parsed out of the envelope" >&2
+  exit 1
+fi
 echo "[$EXP/$SLUG] $N candidates:"
 jq -r '.candidates[].strategy' "$OUT/cands.json" | nl -w4 -s'  '
 echo

@@ -1,7 +1,7 @@
 {
   "id": "002-oneshot-sonnet-5",
   "model": "claude-sonnet-5",
-  "git": "e46ec86",
+  "git": "e5b1114",
   "runs": {
     "clock": {
       "prompt": "an analog clock with a sweeping second hand",
@@ -14,6 +14,24 @@
       "at": "2026-09-12T11:36:29Z",
       "costUSD": 0.2966324,
       "genSeconds": 233
+    },
+    "pendulum": {
+      "prompt": "a pendulum swinging back and forth",
+      "at": "2026-09-12T11:41:52Z",
+      "costUSD": 0.2201594,
+      "genSeconds": 162
+    },
+    "ball": {
+      "prompt": "a red ball bouncing on a white floor",
+      "at": "2026-09-12T11:43:55Z",
+      "costUSD": 0.1806448,
+      "genSeconds": 144
+    },
+    "candle": {
+      "prompt": "a candle flame flickering in the dark",
+      "at": "2026-09-12T11:47:22Z",
+      "costUSD": 0.22220959999999998,
+      "genSeconds": 169
     }
   }
 }

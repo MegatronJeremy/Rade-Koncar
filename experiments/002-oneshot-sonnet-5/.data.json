@@ -1,21 +1,111 @@
 [
   {
     "slug": "ball",
-    "prompt": "",
+    "prompt": "a red ball bouncing on a white floor",
     "i": 0,
-    "strategy": "",
-    "source": "",
-    "status": "compile_error",
-    "log": "ERROR: 0:2: 'mainImage' : no matching overloaded function found"
+    "strategy": "raymarched 3d sdf scene",
+    "source": "float sdSphere(vec3 p, float r) {\n    return length(p) - r;\n}\n\nfloat bounceHeight(float t) {\n    float period = 1.2;\n    float tt = fract(t / period);\n    return 4.0 * tt * (1.0 - tt);\n}\n\nvec2 mapScene(vec3 p, float ballY) {\n    vec3 ballCenter = vec3(0.0, ballY, 0.0);\n    float dBall = sdSphere(p - ballCenter, 0.5);\n    float dFloor = p.y;\n    if (dBall < dFloor) {\n        return vec2(dBall, 1.0);\n    }\n    return vec2(dFloor, 0.0);\n}\n\nvec3 calcNormal(vec3 p, float ballY) {\n    vec2 e = vec2(0.001, 0.0);\n    float dx = mapScene(p + e.xyy, ballY).x - mapScene(p - e.xyy, ballY).x;\n    float dy = mapScene(p + e.yxy, ballY).x - mapScene(p - e.yxy, ballY).x;\n    float dz = mapScene(p + e.yyx, ballY).x - mapScene(p - e.yyx, ballY).x;\n    return normalize(vec3(dx, dy, dz));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    vec3 ro = vec3(0.0, 1.3, 3.2);\n    vec3 target = vec3(0.0, 0.4, 0.0);\n    vec3 fwd = normalize(target - ro);\n    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));\n    vec3 up = cross(fwd, right);\n    vec3 rd = normalize(fwd * 1.5 + uv.x * right + uv.y * up);\n\n    float ballY = 0.5 + bounceHeight(iTime) * 1.6;\n\n    float t = 0.0;\n    float matId = -1.0;\n    vec3 p = ro;\n    for (int i = 0; i < 64; i++) {\n        p = ro + rd * t;\n        vec2 res = mapScene(p, ballY);\n        if (res.x < 0.001) {\n            matId = res.y;\n            break;\n        }\n        t += res.x;\n        if (t > 20.0) break;\n    }\n\n    vec3 col = vec3(1.0);\n\n    if (matId >= 0.0 && t < 20.0) {\n        vec3 n = calcNormal(p, ballY);\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));\n        float diff = max(dot(n, lightDir), 0.0);\n        float amb = 0.25;\n\n        if (matId > 0.5) {\n            vec3 base = vec3(0.85, 0.12, 0.1);\n            vec3 viewDir = normalize(ro - p);\n            vec3 h = normalize(lightDir + viewDir);\n            float spec = pow(max(dot(n, h), 0.0), 32.0);\n            col = base * (amb + diff * 0.8) + vec3(1.0) * spec * 0.5;\n        } else {\n            float dist = length(p.xz);\n            float occ = smoothstep(0.9, 0.0, dist) * clamp(1.0 - (ballY - 0.5) * 0.35, 0.2, 1.0);\n            vec3 base = vec3(0.95) * (0.5 + 0.5 * diff);\n            base *= (1.0 - 0.5 * occ);\n            float fade = clamp(1.0 - dist * 0.08, 0.0, 1.0);\n            col = mix(vec3(1.0), base, fade);\n        }\n    }\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
   },
   {
     "slug": "ball",
-    "prompt": "",
-    "i": -1,
-    "strategy": "",
-    "source": "",
-    "status": "compile_error",
-    "log": "ERROR: 0:2: 'mainImage' : no matching overloaded function found"
+    "prompt": "a red ball bouncing on a white floor",
+    "i": 1,
+    "strategy": "analytic squash stretch bounce",
+    "source": "float sdEllipse(vec2 p, vec2 r) {\n    return (length(p / r) - 1.0) * min(r.x, r.y);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    float floorY = -0.35;\n    float period = 1.1;\n    float tt = fract(iTime / period);\n    float h = 4.0 * tt * (1.0 - tt);\n    float amplitude = 0.55;\n    float radius = 0.16;\n\n    float squash = 1.0 - 0.5 * pow(1.0 - h, 4.0);\n    float sx = radius * (1.0 + (1.0 - squash) * 0.9);\n    float sy = radius * squash;\n\n    vec2 center = vec2(0.0, floorY + sy + h * amplitude);\n    vec2 p = uv - center;\n\n    float dBall = sdEllipse(p, vec2(sx, sy));\n    float dFloor = uv.y - floorY;\n\n    vec3 white = vec3(0.97);\n    vec3 red = vec3(0.85, 0.1, 0.08);\n\n    vec3 col = mix(vec3(0.7, 0.75, 0.8), white, smoothstep(0.02, -0.02, dFloor));\n\n    float shadowW = mix(0.35, 0.15, h);\n    float dShadow = length((uv - vec2(0.0, floorY)) / vec2(shadowW, 0.05)) - 1.0;\n    float shadowMask = smoothstep(0.0, -0.3, dShadow) * (1.0 - 0.6 * h);\n    col = mix(col, col * 0.6, clamp(shadowMask, 0.0, 1.0) * smoothstep(0.02, -0.02, dFloor));\n\n    float ballMask = smoothstep(0.01, -0.01, dBall);\n    vec3 shaded = red * (0.6 + 0.4 * clamp(1.0 - length(p) / max(sx, sy), 0.0, 1.0));\n    col = mix(col, shaded, ballMask);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ball",
+    "prompt": "a red ball bouncing on a white floor",
+    "i": 2,
+    "strategy": "fbm domain warp floor",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    float floorY = -0.3;\n    float period = 1.0;\n    float tt = fract(iTime / period);\n    float h = 4.0 * tt * (1.0 - tt);\n    float radius = 0.15;\n    vec2 center = vec2(0.0, floorY + radius + h * 0.5);\n\n    vec2 warp = vec2(fbm(uv * 2.0 + iTime * 0.1), fbm(uv * 2.0 - iTime * 0.1 + 5.0));\n    vec2 warpedUv = uv + (warp - 0.5) * 0.15;\n    float pattern = fbm(warpedUv * 3.0 + vec2(0.0, iTime * 0.05));\n\n    vec3 floorCol = mix(vec3(0.85), vec3(1.0), pattern);\n    float floorMask = smoothstep(0.02, -0.02, uv.y - floorY);\n    vec3 col = mix(vec3(0.75, 0.8, 0.85), floorCol, floorMask);\n\n    float dBall = length(uv - center) - radius;\n    float ballMask = smoothstep(0.01, -0.01, dBall);\n\n    vec2 n2 = (uv - center) / radius;\n    float nz = sqrt(max(1.0 - dot(n2, n2), 0.0));\n    vec3 normal = normalize(vec3(n2, nz));\n    vec3 lightDir = normalize(vec3(0.5, 0.7, 0.6));\n    float diff = max(dot(normal, lightDir), 0.0);\n    vec3 red = vec3(0.85, 0.1, 0.08) * (0.4 + 0.6 * diff);\n\n    col = mix(col, red, ballMask);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ball",
+    "prompt": "a red ball bouncing on a white floor",
+    "i": 3,
+    "strategy": "voronoi tile floor",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec2 hash22(vec2 p) {\n    float n = hash21(p);\n    float m = hash21(p + 17.13);\n    return vec2(n, m);\n}\n\nfloat voronoi(vec2 p) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minDist = 8.0;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 offset = vec2(float(x), float(y));\n            vec2 pt = hash22(ip + offset);\n            vec2 diff = offset + pt - fp;\n            float d = length(diff);\n            minDist = min(minDist, d);\n        }\n    }\n    return minDist;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    float floorY = -0.3;\n    float period = 1.0;\n    float tt = fract(iTime / period);\n    float h = 4.0 * tt * (1.0 - tt);\n    float radius = 0.15;\n    vec2 center = vec2(0.0, floorY + radius + h * 0.5);\n\n    float v = voronoi(uv * 6.0);\n    vec3 tileCol = mix(vec3(0.9), vec3(1.0), smoothstep(0.0, 0.4, v));\n    float grout = smoothstep(0.03, 0.06, v);\n    tileCol *= mix(0.7, 1.0, grout);\n\n    float floorMask = smoothstep(0.02, -0.02, uv.y - floorY);\n    vec3 col = mix(vec3(0.7, 0.75, 0.8), tileCol, floorMask);\n\n    float distToCenter = length(uv - vec2(center.x, floorY));\n    float shadow = smoothstep(0.35, 0.0, distToCenter) * (1.0 - 0.5 * h);\n    col = mix(col, col * 0.65, shadow * floorMask);\n\n    float dBall = length(uv - center) - radius;\n    float ballMask = smoothstep(0.01, -0.01, dBall);\n    vec2 n2 = (uv - center) / radius;\n    float nz = sqrt(max(1.0 - dot(n2, n2), 0.0));\n    vec3 normal = normalize(vec3(n2, nz));\n    float diff = max(dot(normal, normalize(vec3(0.5, 0.7, 0.6))), 0.0);\n    vec3 red = vec3(0.85, 0.1, 0.08) * (0.4 + 0.6 * diff);\n    col = mix(col, red, ballMask);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ball",
+    "prompt": "a red ball bouncing on a white floor",
+    "i": 4,
+    "strategy": "polar impact ripples",
+    "source": "void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    float floorY = -0.3;\n    float period = 1.0;\n    float phase = iTime / period;\n    float tt = fract(phase);\n    float h = 4.0 * tt * (1.0 - tt);\n    float radius = 0.16;\n    vec2 center = vec2(0.0, floorY + radius + h * 0.55);\n\n    vec3 white = vec3(0.96);\n    float floorMask = smoothstep(0.015, -0.015, uv.y - floorY);\n\n    vec2 contact = vec2(0.0, floorY);\n    vec2 rel = uv - contact;\n    float r = length(rel);\n    float ang = atan(rel.y, rel.x);\n\n    float impactTime = tt;\n    float ringPhase = r * 18.0 - impactTime * 14.0;\n    float rings = 0.5 + 0.5 * sin(ringPhase);\n    float ringFade = exp(-r * 3.0) * smoothstep(0.0, 0.15, impactTime) * (1.0 - smoothstep(0.15, 0.6, impactTime));\n    float angleMod = 0.9 + 0.1 * sin(ang * 6.0);\n\n    vec3 floorCol = mix(white, white * 0.85, rings * ringFade * angleMod);\n    vec3 col = mix(vec3(0.75, 0.8, 0.85), floorCol, floorMask);\n\n    vec2 pRel = uv - center;\n    float pr = length(pRel);\n    float pa = atan(pRel.y, pRel.x);\n    float dBall = pr - radius;\n    float ballMask = smoothstep(0.008, -0.008, dBall);\n\n    float rn = clamp(pr / radius, 0.0, 1.0);\n    float highlightAngle = pa - 2.4;\n    float highlight = exp(-8.0 * (1.0 - rn)) * (0.5 + 0.5 * cos(highlightAngle));\n    float shade = mix(0.35, 1.0, (1.0 - rn));\n    vec3 red = vec3(0.85, 0.08, 0.06) * shade + vec3(1.0) * highlight * 0.5;\n\n    col = mix(col, red, ballMask);\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ball",
+    "prompt": "a red ball bouncing on a white floor",
+    "i": 5,
+    "strategy": "motion trail accumulation",
+    "source": "float ballHeight(float t) {\n    float period = 1.1;\n    float tt = fract(t / period);\n    return 4.0 * tt * (1.0 - tt);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    float floorY = -0.32;\n    float radius = 0.15;\n\n    float floorMask = smoothstep(0.015, -0.015, uv.y - floorY);\n    vec3 col = mix(vec3(0.75, 0.8, 0.85), vec3(0.97), floorMask);\n\n    vec3 trailAccum = vec3(0.0);\n    float coverage = 0.0;\n    const int N = 14;\n    for (int i = 0; i < N; i++) {\n        float dt = float(i) * 0.025;\n        float tPast = iTime - dt;\n        float h = ballHeight(tPast);\n        vec2 center = vec2(0.0, floorY + radius + h * 0.5);\n        float d = length(uv - center) - radius;\n        float mask = smoothstep(0.01, -0.01, d);\n        float weight = exp(-float(i) * 0.35);\n        trailAccum += vec3(0.85, 0.1, 0.08) * mask * weight;\n        coverage = max(coverage, mask * weight);\n    }\n\n    col = mix(col, clamp(trailAccum, 0.0, 1.0), clamp(coverage, 0.0, 1.0));\n\n    float hNow = ballHeight(iTime);\n    vec2 centerNow = vec2(0.0, floorY + radius + hNow * 0.5);\n    float dNow = length(uv - centerNow) - radius;\n    float maskNow = smoothstep(0.01, -0.01, dNow);\n    vec3 shade = vec3(0.9, 0.12, 0.1) * (0.6 + 0.4 * clamp(1.0 - length(uv - centerNow) / radius, 0.0, 1.0));\n    col = mix(col, shade, maskNow);\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 0,
+    "strategy": "radial sdf teardrop",
+    "source": "float sdFlame(vec2 p, float t) {\n    float sway = 0.10 * sin(t * 3.0 + p.y * 3.5) + 0.05 * sin(t * 7.0 - p.y * 2.0);\n    p.x -= sway * (p.y + 0.5);\n    float widthTop = 0.02;\n    float widthBot = 0.30;\n    float k = clamp((p.y + 0.55) / 1.05, 0.0, 1.0);\n    float w = mix(widthBot, widthTop, k) + 0.02 * sin(t * 10.0 + p.y * 8.0) * (1.0 - k);\n    w = max(w, 0.02);\n    vec2 q = vec2(p.x / w, p.y - 0.05);\n    float d = length(q) - 1.0;\n    return d * w;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec2 p = uv;\n    p.y += 0.15;\n\n    float d = sdFlame(p, t);\n    float core = smoothstep(0.05, -0.05, d);\n    float glow = exp(-max(d, 0.0) * 8.0) * 0.5;\n\n    vec3 hot = vec3(1.0, 0.95, 0.6);\n    vec3 mid = vec3(1.0, 0.5, 0.05);\n    vec3 outerc = vec3(0.6, 0.05, 0.0);\n\n    float innerMix = smoothstep(-0.25, 0.05, d);\n    vec3 flameCol = mix(hot, mid, clamp(innerMix * 1.5, 0.0, 1.0));\n    flameCol = mix(flameCol, outerc, clamp(innerMix, 0.0, 1.0));\n\n    vec3 col = vec3(0.0);\n    col += flameCol * core;\n    col += vec3(1.0, 0.4, 0.05) * glow;\n\n    float wick = exp(-length(p - vec2(0.0, -0.35)) * 20.0);\n    col += vec3(1.0, 0.6, 0.2) * wick * 0.3;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec2 p = uv;\n    p.y += 0.15;\n\n    float sway = 0.09 * sin(t * 2.2 + p.y * 3.0);\n    vec2 pw = p;\n    pw.x -= sway * (p.y + 0.5);\n    float k = clamp((pw.y + 0.55) / 1.05, 0.0, 1.0);\n    float w = mix(0.30, 0.015, k);\n    w = max(w, 0.02);\n    vec2 q = vec2(pw.x / w, pw.y - 0.05);\n    float d = length(q) - 1.0;\n    float mask = smoothstep(0.05, -0.05, d);\n\n    vec2 warpP = p * 3.0 + vec2(0.0, -t * 2.0);\n    vec2 warp = vec2(fbm(warpP), fbm(warpP + vec2(5.2, 1.3))) - 0.5;\n    float n = fbm(p * 4.0 + warp * 1.5 + vec2(0.0, -t * 3.0));\n\n    vec3 hot = vec3(1.0, 0.9, 0.5);\n    vec3 mid = vec3(1.0, 0.45, 0.05);\n    vec3 outerc = vec3(0.5, 0.02, 0.0);\n    vec3 col = mix(outerc, mid, clamp(n * 1.4, 0.0, 1.0));\n    col = mix(col, hot, clamp((n - 0.4) * 2.0, 0.0, 1.0) * (1.0 - k));\n\n    vec3 finalCol = col * mask;\n    finalCol += vec3(1.0, 0.5, 0.1) * exp(-max(d, 0.0) * 6.0) * 0.35;\n\n    finalCol = clamp(finalCol, 0.0, 1.0);\n    fragColor = vec4(finalCol, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 2,
+    "strategy": "raymarched volume",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat density(vec3 p, float t) {\n    float r = length(p.xz);\n    float k = clamp((p.y + 0.5) / 1.1, 0.0, 1.0);\n    float w = mix(0.35, 0.02, k);\n    float base = 1.0 - smoothstep(w * 0.7, w * 1.2, r);\n    base *= smoothstep(-0.6, -0.4, p.y) * smoothstep(0.65, 0.3, p.y);\n    float n = noise(p.xz * 4.0 + vec2(0.0, -t * 3.0));\n    n += 0.5 * noise(p.xz * 8.0 + vec2(t * 2.0, -t * 5.0));\n    return max(base * (0.4 + 0.8 * n) - 0.1, 0.0);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec3 ro = vec3(0.0, 0.0, -2.0);\n    vec3 rd = normalize(vec3(uv, 1.4));\n    vec3 col = vec3(0.0);\n    float transmittance = 1.0;\n    float zpos = 0.0;\n    for (int i = 0; i < 40; i++) {\n        vec3 p = ro + rd * zpos;\n        float dens = density(p - vec3(0.0, 0.15, 0.0), t);\n        vec3 hot = vec3(1.0, 0.85, 0.4);\n        vec3 outerc = vec3(0.9, 0.25, 0.02);\n        vec3 c = mix(outerc, hot, clamp(dens * 1.5, 0.0, 1.0));\n        col += transmittance * dens * c * 0.15;\n        transmittance *= exp(-dens * 0.3);\n        zpos += 0.06;\n        if (transmittance < 0.01) break;\n    }\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 3,
+    "strategy": "polar radial flicker",
+    "source": "void mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec2 base = vec2(0.0, -0.45);\n    vec2 rp = uv - base;\n    float ang = atan(rp.x, rp.y);\n    float rad = length(rp);\n\n    float k = clamp(rp.y / 1.1, 0.0, 1.0);\n    float baseEdge = mix(0.42, 0.02, k);\n\n    float wobble = 0.06 * sin(ang * 3.0 + t * 5.0 + k * 4.0)\n                 + 0.035 * sin(ang * 7.0 - t * 9.0)\n                 + 0.02 * sin(ang * 13.0 + t * 17.0);\n\n    float edge = max(baseEdge + wobble * (1.0 - k), 0.01);\n    float d = rad - edge;\n    float core = smoothstep(0.06, -0.04, d);\n\n    float tt = clamp(rad / edge, 0.0, 1.0);\n    vec3 hot = vec3(1.0, 0.95, 0.65);\n    vec3 mid = vec3(1.0, 0.5, 0.08);\n    vec3 outerc = vec3(0.55, 0.04, 0.0);\n    vec3 col = mix(hot, mid, clamp(tt * 1.6, 0.0, 1.0));\n    col = mix(col, outerc, clamp((tt - 0.5) * 2.0, 0.0, 1.0));\n\n    vec3 finalCol = col * core;\n    finalCol += vec3(1.0, 0.45, 0.1) * exp(-max(d, 0.0) * 7.0) * 0.3;\n    finalCol = clamp(finalCol, 0.0, 1.0);\n    fragColor = vec4(finalCol, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 4,
+    "strategy": "layered noise trails",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat layer(vec2 p, float t, float seed) {\n    vec2 q = p;\n    q.y += t;\n    q.x += 0.15 * sin(t * 2.0 + seed * 6.0 + p.y * 3.0);\n    float n = noise(q * 3.0 + seed * 10.0);\n    n += 0.5 * noise(q * 6.0 + seed * 20.0);\n    return n / 1.5;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec2 p = uv;\n    p.y += 0.4;\n\n    float k = clamp((p.y + 0.5) / 1.1, 0.0, 1.0);\n    float width = mix(0.35, 0.03, k);\n    float envelope = 1.0 - smoothstep(width * 0.8, width * 1.3, abs(p.x));\n    envelope *= smoothstep(-0.55, -0.35, p.y) * smoothstep(0.7, 0.2, p.y);\n\n    float acc = 0.0;\n    for (int i = 0; i < 5; i++) {\n        float fi = float(i);\n        acc += layer(p * (1.0 + 0.1 * fi), -t * (0.6 + 0.15 * fi), fi) * (1.0 / (1.0 + fi * 0.6));\n    }\n    acc /= 2.2;\n    acc *= envelope;\n\n    vec3 hot = vec3(1.0, 0.9, 0.55);\n    vec3 mid = vec3(1.0, 0.45, 0.05);\n    vec3 outerc = vec3(0.4, 0.02, 0.0);\n    vec3 col = mix(outerc, mid, clamp(acc * 1.6, 0.0, 1.0));\n    col = mix(col, hot, clamp((acc - 0.45) * 2.2, 0.0, 1.0));\n    col *= envelope;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "candle",
+    "prompt": "a candle flame flickering in the dark",
+    "i": 5,
+    "strategy": "voronoi embers",
+    "source": "vec2 hash2(vec2 p) {\n    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n    return fract(sin(p) * 43758.5453);\n}\n\nfloat voronoi(vec2 p, float t) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minD = 1.0;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 g = vec2(float(x), float(y));\n            vec2 o = hash2(ip + g);\n            o = 0.5 + 0.5 * sin(t * 2.0 + 6.2831 * o);\n            vec2 r = g + o - fp;\n            float d = dot(r, r);\n            minD = min(minD, d);\n        }\n    }\n    return sqrt(minD);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float t = iTime;\n    vec2 p = uv;\n    p.y += 0.35;\n\n    float k = clamp((p.y + 0.5) / 1.1, 0.0, 1.0);\n    float width = mix(0.4, 0.02, k);\n    float sway = 0.08 * sin(t * 2.0 + p.y * 3.0);\n    float envelope = 1.0 - smoothstep(width * 0.8, width * 1.3, abs(p.x - sway * (1.0 - k)));\n    envelope *= smoothstep(-0.55, -0.35, p.y) * smoothstep(0.75, 0.15, p.y);\n\n    vec2 vp = p * 6.0 + vec2(0.0, -t * 1.5);\n    float v = voronoi(vp, t);\n    float cell = 1.0 - smoothstep(0.0, 0.5, v);\n\n    vec3 hot = vec3(1.0, 0.9, 0.5);\n    vec3 mid = vec3(1.0, 0.45, 0.05);\n    vec3 outerc = vec3(0.5, 0.03, 0.0);\n    vec3 col = mix(outerc, mid, clamp(cell * 1.4, 0.0, 1.0));\n    col = mix(col, hot, clamp((cell - 0.55) * 2.2, 0.0, 1.0));\n    col *= envelope;\n\n    vec2 sp = p * 3.0 + vec2(0.0, -t * 0.8);\n    float sv = voronoi(sp + 17.0, t * 1.3);\n    float spark = smoothstep(0.04, 0.0, sv) * smoothstep(0.9, 0.2, p.y) * step(0.0, p.y);\n    col += vec3(1.0, 0.6, 0.2) * spark * 0.6;\n\n    col = clamp(col, 0.0, 1.0);\n    fragColor = vec4(col, 1.0);\n}",
+    "status": "ok",
+    "log": ""
   },
   {
     "slug": "clock",
@@ -68,6 +158,60 @@
     "i": 5,
     "strategy": "voronoi cell face",
     "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nvec2 hash22(vec2 p) {\n    float n = hash21(p);\n    float m = hash21(p + vec2(31.7, 11.3));\n    return vec2(n, m);\n}\n\nfloat voronoi(vec2 p) {\n    vec2 n = floor(p);\n    vec2 f = fract(p);\n    float minDist = 8.0;\n    for (int j = -1; j <= 1; j++) {\n        for (int i = -1; i <= 1; i++) {\n            vec2 g = vec2(float(i), float(j));\n            vec2 o = hash22(n + g);\n            o = 0.5 + 0.5 * sin(iTime * 0.6 + 6.2831 * o);\n            vec2 r = g + o - f;\n            float d = dot(r, r);\n            minDist = min(minDist, d);\n        }\n    }\n    return sqrt(minDist);\n}\n\nfloat sdSegment(vec2 p, vec2 a, vec2 b) {\n    vec2 pa = p - a;\n    vec2 ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y * 2.0;\n    const float TWO_PI = 6.28318530718;\n\n    float secN = mod(iTime, 60.0);\n    float minN = mod(iTime / 60.0, 60.0);\n    float hourN = mod(iTime / 3600.0, 12.0);\n    float thetaSec = secN / 60.0 * TWO_PI;\n    float thetaMin = (minN + secN / 60.0) / 60.0 * TWO_PI;\n    float thetaHour = (hourN + minN / 60.0) / 12.0 * TWO_PI;\n\n    float v = voronoi(uv * 4.0);\n    vec3 cellCol = mix(vec3(0.05, 0.05, 0.1), vec3(0.5, 0.55, 0.65), v);\n\n    float rFace = length(uv);\n    float faceMask = smoothstep(0.95, 0.9, rFace);\n    vec3 col = mix(vec3(0.0), cellCol, faceMask);\n\n    float ring = smoothstep(0.025, 0.0, abs(rFace - 0.9));\n    col = mix(col, vec3(0.95), ring);\n\n    for (int i = 0; i < 12; i++) {\n        float a = float(i) / 12.0 * TWO_PI;\n        vec2 dir = vec2(sin(a), cos(a));\n        float tick = smoothstep(0.03, 0.0, length(uv - dir * 0.8));\n        col = mix(col, vec3(1.0), tick);\n    }\n\n    vec2 hourDir = vec2(sin(thetaHour), cos(thetaHour));\n    vec2 minDir = vec2(sin(thetaMin), cos(thetaMin));\n    vec2 secDir = vec2(sin(thetaSec), cos(thetaSec));\n\n    float dHour = sdSegment(uv, vec2(0.0), hourDir * 0.45);\n    float dMin = sdSegment(uv, vec2(0.0), minDir * 0.65);\n    float dSec = sdSegment(uv, vec2(0.0), secDir * 0.78);\n\n    col = mix(col, vec3(0.05), smoothstep(0.024, 0.01, dHour));\n    col = mix(col, vec3(0.05), smoothstep(0.017, 0.008, dMin));\n    col = mix(col, vec3(1.0, 0.3, 0.15), smoothstep(0.012, 0.004, dSec));\n\n    float hub = smoothstep(0.03, 0.02, rFace);\n    col = mix(col, vec3(1.0, 0.3, 0.15), hub);\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 0,
+    "strategy": "sdf rod and bob",
+    "source": "float sdSegment(vec2 p, vec2 a, vec2 b) {\n    vec2 pa = p - a, ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 pivot = vec2(0.0, 0.6);\n    float angle = 0.9 * sin(iTime * 1.8);\n    float len = 0.9;\n    vec2 bob = pivot + len * vec2(sin(angle), -cos(angle));\n\n    float dRod = sdSegment(uv, pivot, bob);\n    float dBob = length(uv - bob) - 0.12;\n    float dPivot = length(uv - pivot) - 0.03;\n\n    vec3 col = mix(vec3(0.05,0.06,0.10), vec3(0.15,0.17,0.25), clamp(uv.y + 0.5, 0.0, 1.0));\n    col = mix(col, vec3(0.9,0.9,0.95), 1.0 - smoothstep(0.0, 0.01, dRod));\n    col = mix(col, vec3(1.0,0.3,0.2), 1.0 - smoothstep(0.0, 0.02, dBob));\n    col = mix(col, vec3(0.8,0.8,0.85), 1.0 - smoothstep(0.0, 0.02, dPivot));\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float a = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += a * noise(p);\n        p *= 2.0;\n        a *= 0.5;\n    }\n    return v;\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat sdSegment(vec2 p, vec2 a, vec2 b) {\n    vec2 pa = p - a, ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    float angle = 0.8 * sin(iTime * 1.6);\n    vec2 pivot = vec2(0.0, 0.7);\n    float len = 1.0;\n    vec2 bob = pivot + len * vec2(sin(angle), -cos(angle));\n\n    float s = sin(angle);\n    float c = cos(angle);\n    mat2 rot = mat2(c, -s, s, c);\n    vec2 wp = rot * (uv - pivot);\n    wp += 0.3 * vec2(fbm(wp * 2.0 + iTime * 0.2), fbm(wp * 2.0 - iTime * 0.15));\n    float n = fbm(wp * 3.0 + iTime * 0.1);\n\n    vec3 col = palette(n, vec3(0.3,0.3,0.4), vec3(0.4,0.4,0.3), vec3(1.0,1.0,0.7), vec3(0.0,0.15,0.25));\n\n    float dRod = sdSegment(uv, pivot, bob);\n    float dBob = length(uv - bob) - 0.1;\n    col = mix(col, vec3(1.0), 1.0 - smoothstep(0.0, 0.015, dRod));\n    col = mix(col, vec3(0.05,0.05,0.08), 1.0 - smoothstep(0.0, 0.02, dBob));\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 2,
+    "strategy": "voronoi cellular swing",
+    "source": "vec2 hash22(vec2 p) {\n    p = vec2(dot(p, vec2(127.1,311.7)), dot(p, vec2(269.5,183.3)));\n    return fract(sin(p) * 43758.5453);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nfloat voronoi(vec2 p) {\n    vec2 ip = floor(p);\n    vec2 fp = fract(p);\n    float minD = 8.0;\n    for (int y = -1; y <= 1; y++) {\n        for (int x = -1; x <= 1; x++) {\n            vec2 g = vec2(float(x), float(y));\n            vec2 o = hash22(ip + g);\n            vec2 pos = g + 0.5 + 0.4 * sin(6.2831 * o + iTime * 0.6) - fp;\n            float d = length(pos);\n            minD = min(minD, d);\n        }\n    }\n    return minD;\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 pivot = vec2(0.0, 0.7);\n    float angle = 0.8 * sin(iTime * 1.6);\n    vec2 bob = pivot + 1.0 * vec2(sin(angle), -cos(angle));\n\n    vec2 p = uv * 4.0 + vec2(sin(angle) * 0.6, 0.0);\n    float d = voronoi(p);\n\n    vec3 cellColor = palette(d * 1.5, vec3(0.25,0.2,0.3), vec3(0.4,0.4,0.4), vec3(1.0,1.0,1.0), vec3(0.1,0.2,0.3));\n    float edge = smoothstep(0.0, 0.05, d);\n    vec3 col = mix(vec3(0.02,0.02,0.03), cellColor, edge);\n\n    float dBob = length(uv - bob) - 0.09;\n    col = mix(col, vec3(1.0,0.4,0.2), 1.0 - smoothstep(0.0, 0.02, dBob));\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 3,
+    "strategy": "radial arc trail",
+    "source": "float sdSegment(vec2 p, vec2 a, vec2 b) {\n    vec2 pa = p - a, ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h);\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 pivot = vec2(0.0, 0.6);\n    vec2 rel = uv - pivot;\n    float r = length(rel);\n    float ang = atan(rel.x, -rel.y);\n\n    float amp = 0.9;\n    float len = 0.9;\n    float angle = amp * sin(iTime * 1.8);\n\n    vec3 col = vec3(0.02, 0.02, 0.04);\n    float rings = sin(r * 40.0 - iTime * 2.0) * 0.5 + 0.5;\n    col += 0.04 * rings * vec3(0.2, 0.3, 0.5);\n\n    const int N = 10;\n    for (int i = 0; i < N; i++) {\n        float t = iTime - float(i) * 0.035;\n        float ga = amp * sin(t * 1.8);\n        float gd = abs(ang - ga);\n        gd = min(gd, 6.2831853 - gd);\n        float m = smoothstep(0.04, 0.0, gd) * smoothstep(len + 0.06, len - 0.03, r) * smoothstep(0.08, 0.14, r);\n        float fade = 1.0 - float(i) / float(N);\n        vec3 c = (i == 0) ? vec3(0.4, 0.7, 1.0) : vec3(1.0, 0.5, 0.2);\n        col += m * fade * fade * 0.5 * c;\n    }\n\n    vec2 bob = pivot + len * vec2(sin(angle), -cos(angle));\n    float dRod = sdSegment(uv, pivot, bob);\n    float dBob = length(uv - bob) - 0.08;\n    col = mix(col, vec3(0.9), 1.0 - smoothstep(0.0, 0.012, dRod));\n    col = mix(col, vec3(1.0, 0.3, 0.25), 1.0 - smoothstep(0.0, 0.02, dBob));\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 4,
+    "strategy": "raymarched 3d pendulum",
+    "source": "float sdSphere(vec3 p, float r) {\n    return length(p) - r;\n}\n\nfloat sdCapsule(vec3 p, vec3 a, vec3 b, float r) {\n    vec3 pa = p - a, ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h) - r;\n}\n\nfloat map(vec3 p, vec3 pivot, vec3 bob) {\n    float dRod = sdCapsule(p, pivot, bob, 0.03);\n    float dBob = sdSphere(p - bob, 0.18);\n    float dPivot = sdSphere(p - pivot, 0.05);\n    return min(min(dRod, dBob), dPivot);\n}\n\nvec3 calcNormal(vec3 p, vec3 pivot, vec3 bob) {\n    vec2 e = vec2(0.001, 0.0);\n    return normalize(vec3(\n        map(p + e.xyy, pivot, bob) - map(p - e.xyy, pivot, bob),\n        map(p + e.yxy, pivot, bob) - map(p - e.yxy, pivot, bob),\n        map(p + e.yyx, pivot, bob) - map(p - e.yyx, pivot, bob)\n    ));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n\n    vec3 ro = vec3(0.0, 0.1, 2.5);\n    vec3 rd = normalize(vec3(uv, -1.6));\n\n    float angle = 0.8 * sin(iTime * 1.6);\n    vec3 pivot = vec3(0.0, 0.9, 0.0);\n    float len = 1.0;\n    vec3 bob = pivot + len * vec3(sin(angle), -cos(angle), 0.0);\n\n    float t = 0.0;\n    bool hit = false;\n    const int STEPS = 56;\n    for (int i = 0; i < STEPS; i++) {\n        vec3 p = ro + rd * t;\n        float d = map(p, pivot, bob);\n        if (d < 0.001) {\n            hit = true;\n            break;\n        }\n        t += d;\n        if (t > 8.0) break;\n    }\n\n    vec3 col = mix(vec3(0.05,0.06,0.12), vec3(0.15,0.18,0.30), clamp(uv.y + 0.5, 0.0, 1.0));\n\n    if (hit) {\n        vec3 p = ro + rd * t;\n        vec3 n = calcNormal(p, pivot, bob);\n        vec3 lightDir = normalize(vec3(0.5, 0.8, 0.6));\n        float diff = max(dot(n, lightDir), 0.0);\n        vec3 base = (length(p - bob) < 0.2) ? vec3(1.0,0.35,0.2) : vec3(0.8,0.8,0.85);\n        col = base * (0.25 + 0.75 * diff);\n    }\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "pendulum",
+    "prompt": "a pendulum swinging back and forth",
+    "i": 5,
+    "strategy": "feedback afterimage glow",
+    "source": "float sdSegment(vec2 p, vec2 a, vec2 b) {\n    vec2 pa = p - a, ba = b - a;\n    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n    return length(pa - ba * h);\n}\n\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(6.28318 * (c * t + d));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\n    vec2 pivot = vec2(0.0, 0.65);\n    float amp = 0.85;\n    float len = 0.95;\n\n    vec3 col = vec3(0.015, 0.015, 0.02);\n\n    const int N = 24;\n    for (int i = 0; i < N; i++) {\n        float dt = float(i) * 0.02;\n        float t = iTime - dt;\n        float angle = amp * sin(t * 1.8);\n        vec2 bob = pivot + len * vec2(sin(angle), -cos(angle));\n        float dRod = sdSegment(uv, pivot, bob);\n        float dBob = length(uv - bob) - 0.09;\n        float fade = exp(-dt * 6.0);\n        vec3 c = palette(float(i) / float(N), vec3(0.5,0.4,0.6), vec3(0.4,0.4,0.3), vec3(1.0,0.8,0.6), vec3(0.0,0.2,0.4));\n        float glow = fade * (0.015 / (dBob * dBob * 40.0 + 0.02) + 0.3 * (1.0 - smoothstep(0.0, 0.02, dRod)));\n        col += glow * c * 0.25;\n    }\n\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n}",
     "status": "ok",
     "log": ""
   },
