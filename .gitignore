@@ -16,6 +16,7 @@ out/
 # tsc output. The Dockerfile builds these.
 harness/render.js
 harness/snapshot.js
+harness/verify-sandbox.js
 
 # Playwright.
 playwright-report/
@@ -33,6 +34,9 @@ npm-debug.log*
 
 # Agent tooling scratch.
 .playwright-mcp/
+
+# Left behind by `daytona snapshot create` on Windows.
+context.tar
 
 # Absolute local paths, per-machine.
 .claude/launch.json

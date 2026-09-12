@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "files": ["render.ts", "snapshot.ts"]
+  "files": ["render.ts", "snapshot.ts", "verify-sandbox.ts"]
 }

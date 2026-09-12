@@ -11,9 +11,9 @@ async function main(): Promise<void> {
     process.stderr.write(`DAYTONA_API_KEY not set (looked in ${ENV_PATH})\n`);
     process.exit(2);
   }
-  const name = process.env.DAYTONA_SNAPSHOT;
+  const name = process.argv[2] || process.env.DAYTONA_SNAPSHOT;
   if (!name) {
-    process.stderr.write(`DAYTONA_SNAPSHOT not set (looked in ${ENV_PATH})\n`);
+    process.stderr.write(`usage: node snapshot.js [name]   (falls back to DAYTONA_SNAPSHOT in ${ENV_PATH})\n`);
     process.exit(2);
   }
 

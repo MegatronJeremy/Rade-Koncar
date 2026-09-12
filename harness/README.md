@@ -32,19 +32,54 @@ Verified no Chromium survives a timeout run.
 
 ## Sandbox
 
+Snapshot name: **`shader-arena-harness`** (2.36 GB, 2 CPU / 4 GB RAM / 10 GB disk).
+Set `DAYTONA_SNAPSHOT=shader-arena-harness`. Working directory in the sandbox is
+`/harness`, so the command is:
+
+```bash
+node render.js --in <uploaded>.glsl --out out/<id>
+```
+
+Measured in a real sandbox created from it, end to end:
+
+| | |
+|---|---|
+| sandbox create | 1.6 s |
+| `good.glsl` | exit 0, `ok`, 2.2 s, compile 106 ms, frames 139/11/5 ms |
+| `bad.glsl` | exit 0, `compile_error`, 0.8 s |
+| `hang.glsl` | exit 0, `timeout`, 20.7 s |
+
+`node verify-sandbox.js <snapshot>` reruns exactly that: creates a sandbox, runs all
+three fixtures, pulls `t1.png` back to `out/sandbox/`, deletes the sandbox.
+
+Sandbox frames are close to but not byte-identical with the ones committed in
+`fixtures/`, which were rendered by a different SwiftShader build. Comparisons are
+only ever made between candidates from the same run, so this does not matter.
+
+### Rebuilding it
+
+```bash
+npm run build && node snapshot.js shader-arena-harness
+```
+
+Needs `DAYTONA_API_KEY` in the repo-root `.env`; the name falls back to
+`DAYTONA_SNAPSHOT` if the argument is omitted. Daytona builds the Dockerfile
+server-side, so no local Docker is required.
+
+`daytona snapshot create --dockerfile` does the same thing, but on Windows it dies
+with `failed to remove tar file: ... being used by another process` after uploading
+the context. The SDK path above has no such problem.
+
 `Dockerfile` pins `mcr.microsoft.com/playwright:v1.63.0-noble` against playwright 1.63.0
 in `package.json`. Those two versions must move together: the image carries browser builds
 keyed to its own version, and a mismatched client looks for a path that is not there.
 
+It builds in two stages so that typescript and the Daytona SDK stay out of the sandbox;
+the runtime stage is `npm ci --omit=dev`, which leaves playwright as the only dependency.
+
 Chromium runs with `--use-angle=swiftshader --enable-unsafe-swiftshader`, so a sandbox with
 no GPU still gets WebGL2. Without the second flag recent Chromium refuses the software
 fallback and every frame comes back blank, which reads as a broken shader.
-
-Build the snapshot (needs `DAYTONA_API_KEY` and `DAYTONA_SNAPSHOT` in the repo-root `.env`):
-
-```bash
-npm run build && npm run snapshot
-```
 
 ## harness.html
 
