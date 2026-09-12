@@ -1,0 +1,12 @@
+{
+  "id": "local-2026091213512",
+  "model": "claude-sonnet-5",
+  "git": "077a459",
+  "prompt": "a candle flame flickering in the dark",
+  "runs": {
+    "round-1": {
+      "prompt": "a candle flame flickering in the dark  —  round 1",
+      "at": "2026-09-12T13:51:28.334Z"
+    }
+  }
+}

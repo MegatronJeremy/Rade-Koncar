@@ -37,6 +37,10 @@ services:
     envVars:
       # xai is the partner model and the default for the published service.
       # Switch to anthropic in the dashboard if Grok vision does not hold up.
+      # The CLI defaults to local so an iteration cannot take the site down.
+      # The deployed service is the one path that must use sandboxes and Convex.
+      - key: RUN_MODE
+        value: convex
       - key: LLM_PROVIDER
         value: xai
       - key: DAYTONA_SNAPSHOT

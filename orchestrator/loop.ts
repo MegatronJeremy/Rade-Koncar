@@ -1,7 +1,7 @@
 import { compareGenerations, generateCandidates, mutateCandidates, rankGeneration, spend } from "./llm";
-import { createPool, mapOverPool, poolSize, renderInSandbox } from "./sandbox";
+import { renderer, sink, mode } from "./sink";
 import { rankingScore, scoreCandidate } from "./score";
-import * as store from "./store";
+import type * as store from "./store";
 import type { Candidate, Rendered } from "./types";
 
 const GENS = Number(process.env.GENS ?? 3);
@@ -147,18 +147,19 @@ async function reportImprovement(prompt: string, first?: Live, last?: Live): Pro
 
 /** One prompt, three generations, six candidates each. */
 export async function runOnce(prompt: string): Promise<store.RunId> {
-  const runId = await store.createRun(prompt);
-  const pool = await createPool(poolSize());
+  const out = sink();
+  const runId = await out.createRun(prompt);
+  const render = await renderer();
   let parents: Live[] = [];
   /** Best candidate of the run so far. Never dropped from the parent set. */
   let champion: Live | undefined;
   let firstBest: Live | undefined;
 
   try {
-    await store.setRunStatus(runId, "running");
+    await out.setRunStatus(runId, "running");
 
     for (let gen = 1; gen <= GENS; gen++) {
-      const generationId = await store.createGeneration(runId, gen);
+      const generationId = await out.createGeneration(runId, gen);
 
       const candidates =
         gen === 1
@@ -173,7 +174,7 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
         candidates.map(async (c, i) => ({
           candidate: c,
           index: i,
-          id: await store.createCandidate({
+          id: await out.createCandidate({
             runId, generationId, index: i, strategy: c.strategy, source: c.source,
             parentIds: gen === 1 ? [] : parentIds,
           }),
@@ -185,20 +186,20 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
       );
 
       // Every candidate renders, queued through the pool.
-      await mapOverPool(pool, live, async (box, l, i) => {
+      await render.each(live, async (l, i, renderOne) => {
         {
-          await store.setCandidateStatus(l.id, "rendering");
+          await out.setCandidateStatus(l.id, "rendering");
           try {
-            const r = await renderInSandbox(box, `g${gen}c${i}`, l.candidate.source);
+            const r = await renderOne(`g${gen}c${i}`, l.candidate.source);
             l.rendered = r;
             if (r.result.status === "ok") {
-              await store.uploadFrames(l.id, r.png);
-              await store.setCandidateStatus(l.id, "scoring");
+              await out.uploadFrames(l.id, r.png);
+              await out.setCandidateStatus(l.id, "scoring");
             } else {
-              await store.setCandidateStatus(l.id, r.result.status, r.result.log);
+              await out.setCandidateStatus(l.id, r.result.status, r.result.log);
             }
           } catch (err) {
-            await store.setCandidateStatus(l.id, "timeout", String(err).slice(0, 500));
+            await out.setCandidateStatus(l.id, "timeout", String(err).slice(0, 500));
           }
         }
       });
@@ -212,7 +213,7 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
           l.rank = scores.flat ? 0 : rankingScore(scores.palette, scores.motion, scores.subject);
           l.critique = critique;
           l.framePaths = framePaths;
-          await store.setCandidateScores(l.id, scores, critique);
+          await out.setCandidateScores(l.id, scores, critique);
         }),
       );
 
@@ -223,8 +224,8 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
         champion = contender;
       }
       parents = withChampion(champion, survivors);
-      if (parents.length > 0) await store.markSurvivors(parents.map((p) => p.id));
-      await store.setGenerationStatus(generationId, "done");
+      if (parents.length > 0) await out.markSurvivors(parents.map((p) => p.id));
+      await out.setGenerationStatus(generationId, "done");
 
       console.log(
         `[gen ${gen}] ` +
@@ -237,12 +238,12 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
     }
 
     await reportImprovement(prompt, firstBest, champion);
-    await store.setRunStatus(runId, "done");
+    await out.setRunStatus(runId, "done");
     return runId;
   } catch (err) {
-    await store.setRunStatus(runId, "failed");
+    await out.setRunStatus(runId, "failed");
     throw err;
   } finally {
-    await pool.dispose();
+    await render.dispose();
   }
 }

@@ -9,5 +9,5 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "files": ["types.ts", "env.ts", "llm.ts", "sandbox.ts", "store.ts", "score.ts", "loop.ts", "cli.ts", "server.ts"]
+  "files": ["types.ts", "env.ts", "llm.ts", "sandbox.ts", "store.ts", "local.ts", "sink.ts", "score.ts", "loop.ts", "cli.ts", "server.ts"]
 }
