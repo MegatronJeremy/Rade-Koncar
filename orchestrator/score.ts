@@ -21,8 +21,34 @@ const MOTION_MIN = 0.01;
  * This is deliberately not `scores.total`. The number on screen is the plain
  * sum, so that the three components a viewer can see actually add up to it.
  */
-export const rankingScore = (palette: number, motionScore: number, subject: number): number =>
-  0.75 * palette + 0.75 * motionScore + 1.5 * subject;
+export const rankingScore = (palette: number, motionScore: number, subject: number): number => {
+  const base = 0.75 * palette + 0.75 * motionScore + 1.5 * subject;
+  const axes = [palette, motionScore, subject];
+  const mean = (axes[0]! + axes[1]! + axes[2]!) / 3;
+  return base - LAGGARD * (mean - Math.min(...axes));
+};
+
+/**
+ * Cost of one axis lagging the others.
+ *
+ * Measured across the finished runs, motion is the bottleneck on every prompt
+ * and the only axis that does not improve: the eye went palette 6.8 to 7.3 and
+ * subject 6.5 to 8.5 over three rounds while motion moved 2.0 to 2.3. The
+ * critique named flicker in all five rounds of the long candle run and the score
+ * sat at 23 to 24 throughout.
+ *
+ * The weighted sum caused it. Subject at 1.5 against motion at 0.75 means a
+ * candidate that looks right and sits still outranks one that moves and is a
+ * little less recognisable, so selection rewarded the axis the critique was not
+ * complaining about. Weighting motion back up would reopen what the weights were
+ * for, a beautiful nebula beating a scruffy but correct wool texture.
+ *
+ * Penalising the gap to the weakest axis fixes the misalignment without touching
+ * the weights: whatever is worst is what costs the most, which is what the
+ * critique is about anyway. The eye's 7.3 / 2.3 / 8.5 falls from 19.9 to 16.2,
+ * while a balanced 6 / 6 / 7 rises past it at 19.2.
+ */
+const LAGGARD = 1.0;
 
 const luminance = (p: PNG): Float64Array => {
   const v = new Float64Array(p.width * p.height);
