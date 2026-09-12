@@ -3,7 +3,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { Hero } from "./components/Hero";
-import { SEEDED_RUN } from "./fixtures";
 import { LiveApp } from "./LiveApp";
 import "./styles.css";
 
@@ -25,7 +24,7 @@ createRoot(root).render(
     {convex === undefined ? (
       <>
         <Hero state="absent" running={undefined} submit={async () => undefined} onBrowseSamples={() => undefined} />
-        <App run={SEEDED_RUN} isSample />
+        <App run={undefined} />
       </>
     ) : (
       <ConvexProvider client={convex}>

@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import { CandidateDetail } from "./components/CandidateDetail";
 import { Column } from "./components/Column";
-import { indexCandidates } from "./fixtures";
 import { useFrameTick } from "./hooks/useFrameTick";
 import type { Candidate, Generation, Run } from "./types";
 
 export interface AppProps {
   readonly run: Run | undefined;
-  /** True when we are showing the bundled sample rather than anything from Convex. */
-  readonly isSample: boolean;
 }
+
+/** Every candidate in the run, for resolving `parentIds` to the tiles they name. */
+const indexCandidates = (run: Run): ReadonlyMap<string, Candidate> =>
+  new Map(run.generations.flatMap((g) => g.candidates.map((c) => [c.id, c] as const)));
 
 const countWhere = (run: Run, match: (status: Candidate["status"]) => boolean): number =>
   run.generations.reduce(
@@ -20,7 +21,7 @@ const countWhere = (run: Run, match: (status: Candidate["status"]) => boolean): 
 const bestTotal = (generation: Generation): number =>
   generation.candidates.reduce((best, c) => Math.max(best, c.scores?.total ?? 0), 0);
 
-export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
+export const App = ({ run }: AppProps): React.JSX.Element => {
   const frame = useFrameTick();
   const [shownGenerationId, setShownGenerationId] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<Candidate | undefined>(undefined);
@@ -30,14 +31,7 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
     [run],
   );
 
-  if (run === undefined) {
-    return (
-      <main className="empty">
-        <h1 className="wordmark">Shader Arena</h1>
-        <p>No runs yet. Send a prompt to start one.</p>
-      </main>
-    );
-  }
+  if (run === undefined) return <main className="empty" />;
 
   const control = run.generations[0];
   /*
@@ -69,7 +63,7 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
     <>
       <div className="run-bar">
         <span className={`run-state${live ? " is-live" : ""}`}>
-          {live ? "Running now" : isSample ? "Sample run" : "Saved run"}
+          {live ? "Running now" : "Saved run"}
         </span>
         <span className="run-prompt">{run.prompt}</span>
         <span className="run-meta">

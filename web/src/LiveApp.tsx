@@ -6,7 +6,6 @@ import { App } from "./App";
 import { Hero } from "./components/Hero";
 import { Rail, type Stage } from "./components/Rail";
 import { SampleGallery } from "./components/SampleGallery";
-import { SEEDED_RUN } from "./fixtures";
 import type { Run } from "./types";
 
 /**
@@ -82,7 +81,7 @@ export const LiveApp = (): React.JSX.Element => {
         liveRunning={liveRunning}
         onLoaded={setGallery}
       />
-      <App run={fromConvex ?? SEEDED_RUN} isSample={fromConvex === undefined} />
+      <App run={fromConvex} />
     </>
   );
 };
