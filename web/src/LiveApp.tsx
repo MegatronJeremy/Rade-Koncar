@@ -98,6 +98,15 @@ export const LiveApp = (): React.JSX.Element => {
    * when nothing has been started here.
    */
   const [myRuns, setMyRuns] = useState<readonly Run[]>([]);
+  /*
+   * Optimistic: recorded the moment the request is accepted, so the row says
+   * "stopping" while the orchestrator unwinds. Never cleared, because it is
+   * only read for runs still working, and a stopped run is not.
+   */
+  const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set());
+  /* Same for the other direction: the row says "starting" until the round is
+     actually under way, so the click is never a no-op on screen. */
+  const [starting, setStarting] = useState<ReadonlySet<string>>(new Set());
   // The newest of mine that the orchestrator is still working on, if any.
   const live = myRuns.find((r) => isWorking(r)) ?? null;
   const [chosenId, setChosenId] = useState<string | undefined>(undefined);
@@ -169,8 +178,34 @@ export const LiveApp = (): React.JSX.Element => {
         ids={mineIds}
         selectedId={chosen?.id}
         onPick={setChosenId}
-        onContinue={(id) => void orchestrator.continueRun(id).catch(() => undefined)}
-        onStop={(id) => void orchestrator.stop(id).catch(() => undefined)}
+        onContinue={(id) => {
+          setStarting((s) => new Set(s).add(id));
+          void orchestrator
+            .continueRun(id)
+            .catch(() => undefined)
+            .finally(() => {
+              // Either it is working now, in which case the row shows that, or
+              // it failed and the button must come back.
+              setStarting((s) => {
+                const next = new Set(s);
+                next.delete(id);
+                return next;
+              });
+            });
+        }}
+        onStop={(id) => {
+          setStopping((s) => new Set(s).add(id));
+          void orchestrator.stop(id).catch(() => {
+            // It never landed, so let them try again.
+            setStopping((s) => {
+              const next = new Set(s);
+              next.delete(id);
+              return next;
+            });
+          });
+        }}
+        stopping={stopping}
+        starting={starting}
         blocked={liveRunning}
         onLoaded={setMyRuns}
       />

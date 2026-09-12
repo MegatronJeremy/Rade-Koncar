@@ -1320,3 +1320,14 @@ body {
   width: 100%;
   margin-top: 16px;
 }
+
+.yours-stopping {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fail);
+}
+
+.yours-stopping .pip {
+  background: var(--fail);
+}

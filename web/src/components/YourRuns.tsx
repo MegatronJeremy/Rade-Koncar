@@ -6,6 +6,14 @@ interface YourRunsProps {
   readonly onPick: (runId: string) => void;
   readonly onContinue: (runId: string) => void;
   readonly onStop: (runId: string) => void;
+  /**
+   * Runs this browser has asked to stop. A stop takes a couple of seconds to
+   * land, and an unchanged row for that long is indistinguishable from a button
+   * that did nothing.
+   */
+  readonly stopping: ReadonlySet<string>;
+  /** Runs asked for another iteration, before the orchestrator has started it. */
+  readonly starting: ReadonlySet<string>;
   /** Another run holds the sandboxes, so neither action can start now. */
   readonly blocked: boolean;
 }
@@ -34,6 +42,8 @@ export const YourRuns = ({
   onPick,
   onContinue,
   onStop,
+  stopping,
+  starting,
   blocked,
 }: YourRunsProps): React.JSX.Element | null => {
   if (runs.length === 0) return null;
@@ -56,10 +66,20 @@ export const YourRuns = ({
               >
                 <span className="yours-prompt">{run.prompt}</span>
                 <span className="yours-meta">
-                  {working ? (
+                  {working && stopping.has(run.id) ? (
+                    <span className="yours-stopping">
+                      <i className="pip" aria-hidden="true" />
+                      stopping
+                    </span>
+                  ) : working ? (
                     <span className="yours-live">
                       <i className="pip" aria-hidden="true" />
                       {run.status === "queued" ? "starting" : "running"}
+                    </span>
+                  ) : starting.has(run.id) ? (
+                    <span className="yours-live">
+                      <i className="pip" aria-hidden="true" />
+                      starting
                     </span>
                   ) : run.status === "failed" ? (
                     <span className="yours-failed">stopped</span>
@@ -75,8 +95,13 @@ export const YourRuns = ({
                 </span>
               </button>
               {working ? (
-                <button type="button" className="yours-act" onClick={() => onStop(run.id)}>
-                  Stop
+                <button
+                  type="button"
+                  className="yours-act"
+                  onClick={() => onStop(run.id)}
+                  disabled={stopping.has(run.id)}
+                >
+                  {stopping.has(run.id) ? "Stopping" : "Stop"}
                 </button>
               ) : run.status === "done" ? (
                 <button
