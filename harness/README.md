@@ -3,6 +3,49 @@
 Given GLSL source that defines `mainImage`, produce three 256x256 PNGs of what it draws.
 Output shape is `docs/01-contracts.md` §1.
 
+## render.js
+
+```bash
+npm install && npm run build
+node render.js --in fixtures/good.glsl --out out/good
+```
+
+Writes `t0.png`, `t1.png`, `t2.png` and `result.json` into the output directory.
+Exit code is 0 whenever `result.json` was written, which includes `compile_error` and
+`timeout`; non-zero only when Chromium itself failed to come up.
+
+Measured against the fixtures under SwiftShader:
+
+| Input | status | wall |
+|---|---|---|
+| `good.glsl` | `ok`, compile 40 ms, frames 67/4/3 ms | under 3 s |
+| `bad.glsl` | `compile_error`, log `ERROR: 0:3: ';' : syntax error` | under 3 s |
+| `hang.glsl` | `timeout`, log `frame t0 exceeded 20000 ms` | 22 s |
+
+The first frame costs an order of magnitude more than the rest: SwiftShader compiles the
+shader to machine code lazily on first draw.
+
+A wedged shader blocks inside `glFinish` and the `evaluate` promise never settles, so
+`render.js` launches through `chromium.launchServer` and SIGKILLs the server on timeout.
+`Browser` exposes no handle on its process, which is why it is not a plain `launch`.
+Verified no Chromium survives a timeout run.
+
+## Sandbox
+
+`Dockerfile` pins `mcr.microsoft.com/playwright:v1.63.0-noble` against playwright 1.63.0
+in `package.json`. Those two versions must move together: the image carries browser builds
+keyed to its own version, and a mismatched client looks for a path that is not there.
+
+Chromium runs with `--use-angle=swiftshader --enable-unsafe-swiftshader`, so a sandbox with
+no GPU still gets WebGL2. Without the second flag recent Chromium refuses the software
+fallback and every frame comes back blank, which reads as a broken shader.
+
+Build the snapshot (needs `DAYTONA_API_KEY` and `DAYTONA_SNAPSHOT` in the repo-root `.env`):
+
+```bash
+npm run build && npm run snapshot
+```
+
 ## harness.html
 
 A standalone page: paste a candidate into the textarea, press Run, get three captured
