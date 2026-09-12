@@ -336,6 +336,23 @@ const xai = (): OpenAI => {
 };
 const xaiModel = (): string => need("XAI_MODEL");
 
+const XAI_EFFORTS = ["low", "medium", "high"];
+
+/**
+ * Grok's reasoning budget. Empty leaves it unset, which is what the deployed
+ * service did before this existed and which measures close to `high`.
+ *
+ * Checked rather than passed through: an unknown value is a 400 from the API
+ * partway through a run, and the run has already paid for codegen by then.
+ */
+const xaiEffort = (): string => {
+  const e = opt("XAI_EFFORT", "");
+  if (e !== "" && !XAI_EFFORTS.includes(e)) {
+    throw new Error(`XAI_EFFORT="${e}" is not one of ${XAI_EFFORTS.join(", ")}`);
+  }
+  return e;
+};
+
 /** Models wrap JSON in prose or fences regardless of instructions. Dig it out. */
 const looseJson = (text: string): unknown => {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -354,6 +371,7 @@ async function xaiJson(system: string, content: OpenAI.ChatCompletionContentPart
       { role: "user", content: content as never },
     ],
     response_format: { type: "json_schema", json_schema: { name, schema, strict: true } } as never,
+    ...(xaiEffort() === "" ? {} : { reasoning_effort: xaiEffort() as "low" | "medium" | "high" }),
     },
     { signal: signal() },
   );
