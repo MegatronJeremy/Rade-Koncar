@@ -83,8 +83,8 @@ export const SampleBar = ({
               </span>
               <span className="sample-prompt">{run.prompt}</span>
               <span className="sample-meta">
-                {run.generations.length} rounds
-                {gain > 0 ? <b> · +{gain}</b> : null}
+                <span>{run.generations.length} rounds</span>
+                {gain > 0 ? <b>+{gain}</b> : null}
               </span>
             </button>
           );

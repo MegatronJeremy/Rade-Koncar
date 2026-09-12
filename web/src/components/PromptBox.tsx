@@ -7,10 +7,10 @@ interface PromptBoxProps {
 }
 
 /**
- * Shown only when the orchestrator answered its health check. With no
- * orchestrator the control is absent rather than disabled: a dead input with no
- * explanation reads as a broken product, and this link is opened long after the
- * event with nothing running behind it.
+ * The main control. It is shown whether or not the orchestrator answered: this
+ * is what the product does, and hiding it makes the page look like a gallery
+ * that never had a prompt. When runs are off the input is disabled and the hero
+ * says why.
  */
 export const PromptBox = ({ state, submit }: PromptBoxProps): React.JSX.Element | null => {
   const [prompt, setPrompt] = useState<string>("");
@@ -18,15 +18,7 @@ export const PromptBox = ({ state, submit }: PromptBoxProps): React.JSX.Element 
   const [error, setError] = useState<string | undefined>(undefined);
   const [sent, setSent] = useState<boolean>(false);
 
-  if (state === "probing") return null;
-
-  if (state !== "up") {
-    return (
-      <p className="prompt-quiet">
-        Live runs during the event. This is a saved run.
-      </p>
-    );
-  }
+  const ready = state === "up";
 
   const send = (event: React.FormEvent): void => {
     event.preventDefault();
@@ -58,12 +50,18 @@ export const PromptBox = ({ state, submit }: PromptBoxProps): React.JSX.Element 
         }}
         placeholder="a candle flame flickering in the dark"
         aria-label="Describe what the shaders should draw"
-        disabled={sending}
+        disabled={sending || !ready}
       />
-      <button type="submit" className="prompt-go" disabled={sending || prompt.trim().length === 0}>
+      <button
+        type="submit"
+        className="prompt-go"
+        disabled={sending || !ready || prompt.trim().length === 0}
+      >
         {sending ? "Starting" : "Run"}
       </button>
-      {error !== undefined ? (
+      {state === "probing" ? (
+        <span className="prompt-note">Checking whether runs are available</span>
+      ) : error !== undefined ? (
         <span className="prompt-note is-error">{error}</span>
       ) : sent ? (
         <span className="prompt-note">Started. Six shaders are being written.</span>

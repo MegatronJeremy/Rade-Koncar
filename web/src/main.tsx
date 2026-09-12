@@ -24,7 +24,7 @@ createRoot(root).render(
   <StrictMode>
     {convex === undefined ? (
       <>
-        <Hero state="absent" submit={async () => undefined} />
+        <Hero state="absent" submit={async () => undefined} onBrowseSamples={() => undefined} />
         <App run={SEEDED_RUN} isSample />
       </>
     ) : (

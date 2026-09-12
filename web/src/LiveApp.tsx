@@ -1,9 +1,10 @@
 import { useQuery } from "convex/react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useOrchestrator } from "./hooks/useOrchestrator";
 import { api } from "../convex/_generated/api";
 import { App } from "./App";
 import { Hero } from "./components/Hero";
+import { Rail, type Stage } from "./components/Rail";
 import { SampleGallery } from "./components/SampleGallery";
 import { SEEDED_RUN } from "./fixtures";
 import type { Run } from "./types";
@@ -38,18 +39,18 @@ export const LiveApp = (): React.JSX.Element => {
   const pinned = useQuery(api.runs.pinnedRun);
   const [chosenId, setChosenId] = useState<string | undefined>(undefined);
   const orchestrator = useOrchestrator();
+  const [stage, setStage] = useState<Stage>("run");
 
   /*
-   * The gallery owns its own query so that a deployment missing sampleRuns
-   * takes down the bar and nothing else. It hands the loaded runs back here,
-   * through a ref rather than state, because writing state during another
-   * component's render would loop.
+   * The gallery owns its own query so a deployment missing sampleRuns takes
+   * down the bar and nothing else. It reports what it loaded back here, from an
+   * effect, so the tab count and the chosen run both see it.
    */
-  const galleryRef = useRef<readonly Run[]>([]);
+  const [gallery, setGallery] = useState<readonly Run[]>([]);
 
   // `undefined` means still loading; `null` means loaded and absent.
   const loading = live === undefined || pinned === undefined;
-  const chosen = galleryRef.current.find((r) => r.id === chosenId);
+  const chosen = gallery.find((r) => r.id === chosenId);
 
   /*
    * A run happening now always wins: someone is watching their own prompt. A
@@ -60,14 +61,25 @@ export const LiveApp = (): React.JSX.Element => {
 
   return (
     <>
-      <Hero state={orchestrator.state} submit={orchestrator.submit} />
+      <Rail
+        stage={stage}
+        onStage={setStage}
+        sampleCount={gallery.length}
+        running={liveRunning}
+      />
+      {stage === "run" ? (
+        <Hero
+          state={orchestrator.state}
+          submit={orchestrator.submit}
+          onBrowseSamples={() => setStage("samples")}
+        />
+      ) : null}
       <SampleGallery
+        hidden={stage !== "samples"}
         selectedId={liveRunning ? undefined : (chosen?.id ?? fromConvex?.id)}
         onPick={setChosenId}
         liveRunning={liveRunning}
-        onLoaded={(runs) => {
-          galleryRef.current = runs;
-        }}
+        onLoaded={setGallery}
       />
       <App run={fromConvex ?? SEEDED_RUN} isSample={fromConvex === undefined} />
     </>

@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { Component, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Run } from "../types";
 import { SampleBar } from "./SampleBar";
@@ -27,13 +27,15 @@ class Boundary extends Component<{ readonly children: ReactNode }, { failed: boo
 }
 
 interface GalleryProps {
+  /** Kept mounted while hidden: the query feeds the tab's count. */
+  readonly hidden?: boolean;
   readonly selectedId: string | undefined;
   readonly onPick: (runId: string) => void;
   readonly liveRunning: boolean;
   readonly onLoaded: (runs: readonly Run[]) => void;
 }
 
-const Inner = ({ selectedId, onPick, liveRunning, onLoaded }: GalleryProps): React.JSX.Element => {
+const Inner = ({ hidden, selectedId, onPick, liveRunning, onLoaded }: GalleryProps): React.JSX.Element | null => {
   const samples = useQuery(api.runs.sampleRuns);
   // Convex brands its ids; Run narrows them to string, so widen on the way out.
   const withTiles = (samples ?? []).filter((r) =>
@@ -51,7 +53,19 @@ const Inner = ({ selectedId, onPick, liveRunning, onLoaded }: GalleryProps): Rea
     return best(r.generations.length - 1) - best(0);
   };
   const gallery = [...withTiles].sort((a, b) => climb(b) - climb(a));
-  onLoaded(gallery);
+  /*
+   * Reported from an effect, not during render: the rail shows the count, and
+   * writing it mid-render leaves the rail a paint behind with no re-render to
+   * correct it. The dependency is the id list so a poll that returns equal data
+   * does not loop.
+   */
+  const ids = gallery.map((r) => r.id).join(",");
+  useEffect(() => {
+    onLoaded(gallery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
+
+  if (hidden === true) return null;
   return (
     <SampleBar
       samples={gallery}
