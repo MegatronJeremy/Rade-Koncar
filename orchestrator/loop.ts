@@ -150,6 +150,29 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
   const out = sink();
   const runId = await out.createRun(prompt);
   const render = await renderer();
+
+  /*
+   * Cleanup lives in a finally, and a signal skips it. Killing a run therefore
+   * left its sandboxes allocated, which is the whole account quota, and left the
+   * run marked running in Convex, which the UI prefers over the pinned one, so a
+   * dead run held the public front page. Both happened, twice.
+   *
+   * once() guards against a second signal arriving mid-teardown, and the handler
+   * is removed on the normal path so a long-lived server does not accumulate one
+   * per run.
+   */
+  let tearingDown = false;
+  const onSignal = (sig: NodeJS.Signals): void => {
+    if (tearingDown) return;
+    tearingDown = true;
+    console.log(`\n[${sig}] releasing sandboxes and marking the run failed`);
+    void (async () => {
+      await Promise.allSettled([render.dispose(), out.setRunStatus(runId, "failed")]);
+      process.exit(130);
+    })();
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
   let parents: Live[] = [];
   /** Best candidate of the run so far. Never dropped from the parent set. */
   let champion: Live | undefined;
@@ -244,6 +267,8 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
     await out.setRunStatus(runId, "failed");
     throw err;
   } finally {
+    process.off("SIGINT", onSignal);
+    process.off("SIGTERM", onSignal);
     await render.dispose();
   }
 }

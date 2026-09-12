@@ -17,14 +17,39 @@ const hasTiles = (run: Run | null | undefined): run is Run =>
   run !== null && run !== undefined && run.generations.some((g) => g.candidates.length > 0);
 
 /**
- * A live run takes over the view while it is running; otherwise the public URL
- * shows the pinned run. Judges open this link days later with nothing else
- * running, so the pinned run is the front door rather than a fallback.
+ * A run older than this is not live however it is labelled. The orchestrator
+ * marks a run failed on its way out, but a crash, a Render restart or a kill
+ * that outruns the handler leaves one stranded as running, and the view prefers
+ * a running run over the pinned one. Without a clock on it, one stranded run
+ * holds the front page forever. Fifteen minutes is twice the length of a normal
+ * three-round run.
  */
-/** Queued or running: the orchestrator is working on it, tiles or not. */
-const isWorking = (run: Run | null): run is Run =>
-  run !== null && (run.status === "queued" || run.status === "running");
+/**
+ * A run older than this is not working on anything, however it is labelled. The
+ * orchestrator marks a run failed on its way out, but a crash, a Render restart
+ * or a kill that outruns the handler leaves one stranded, and this view prefers
+ * a working run over the pinned one. Without a clock, one stranded run holds the
+ * front page forever, which is exactly what happened. Fifteen minutes is twice a
+ * normal three-round run.
+ */
+const STALE_MS = 15 * 60 * 1000;
 
+/**
+ * Queued or running: the orchestrator is working on it, tiles or not. Showing a
+ * run before its first tile is deliberate, so submitting a prompt does something
+ * visible immediately, and it is also why the clock matters: a stranded run with
+ * no tiles at all would otherwise take the page.
+ */
+const isWorking = (run: Run | null): run is Run =>
+  run !== null &&
+  (run.status === "queued" || run.status === "running") &&
+  Date.now() - run.createdAt < STALE_MS;
+
+/**
+ * A working run takes over the view; otherwise the public URL shows the pinned
+ * run. Judges open this link days later with nothing else running, so the
+ * pinned run is the front door rather than a fallback.
+ */
 const pickRun = (live: Run | null, pinned: Run | null): Run | undefined => {
   if (isWorking(live)) return live;
   if (hasTiles(pinned)) return pinned;
