@@ -1,19 +1,15 @@
 import { useMemo, useState } from "react";
 import { CandidateDetail } from "./components/CandidateDetail";
 import { Column } from "./components/Column";
-import { indexCandidates, SEEDED_RUN } from "./fixtures";
+import { indexCandidates } from "./fixtures";
 import { useFrameTick } from "./hooks/useFrameTick";
 import type { Candidate, Generation, Run } from "./types";
 
-/**
- * A live run takes over the view while it is running; otherwise the public URL
- * shows the pinned run. Judges open this link days later with nothing else
- * running, so the pinned run is the front door rather than a fallback.
- */
-const pickRun = (live: Run | undefined, pinned: Run | undefined): Run | undefined => {
-  if (live !== undefined && live.status === "running") return live;
-  return pinned ?? live;
-};
+export interface AppProps {
+  readonly run: Run | undefined;
+  /** True when we are showing the bundled sample rather than anything from Convex. */
+  readonly isSample: boolean;
+}
 
 const countWhere = (run: Run, match: (status: Candidate["status"]) => boolean): number =>
   run.generations.reduce(
@@ -24,14 +20,15 @@ const countWhere = (run: Run, match: (status: Candidate["status"]) => boolean): 
 const bestTotal = (generation: Generation): number =>
   generation.candidates.reduce((best, c) => Math.max(best, c.scores?.total ?? 0), 0);
 
-export const App = (): React.JSX.Element => {
+export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
   const frame = useFrameTick();
   const [shownGenerationId, setShownGenerationId] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<Candidate | undefined>(undefined);
 
-  // Until Convex is wired, there is no live run — `pickRun` still decides.
-  const run = pickRun(undefined, SEEDED_RUN);
-  const byId = useMemo(() => (run === undefined ? new Map() : indexCandidates(run)), [run]);
+  const byId = useMemo(
+    () => (run === undefined ? new Map<string, Candidate>() : indexCandidates(run)),
+    [run],
+  );
 
   if (run === undefined) {
     return (
@@ -73,7 +70,7 @@ export const App = (): React.JSX.Element => {
 
       <div className="run-bar">
         <span className={`run-state${live ? " is-live" : ""}`}>
-          {live ? "Running now" : "Saved run"}
+          {live ? "Running now" : isSample ? "Sample run" : "Saved run"}
         </span>
         <span className="run-prompt">{run.prompt}</span>
         <span className="run-meta">

@@ -40,9 +40,9 @@ export interface Candidate {
   /** Three Convex storage URLs on success, empty otherwise. */
   readonly frameUrls: readonly string[];
   /** Compiler info log, present on `compile_error`. */
-  readonly log?: string;
-  readonly scores?: Scores;
-  readonly critique?: string;
+  readonly log?: string | undefined;
+  readonly scores?: Scores | undefined;
+  readonly critique?: string | undefined;
   readonly parentIds: readonly string[];
   readonly survived: boolean;
 }
@@ -59,7 +59,7 @@ export interface Run {
   readonly prompt: string;
   readonly mode: RunMode;
   readonly status: RunStatus;
-  readonly steering?: string;
+  readonly steering?: string | undefined;
   readonly createdAt: number;
   readonly pinned: boolean;
   readonly generations: readonly Generation[];
