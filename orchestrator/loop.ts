@@ -42,6 +42,29 @@ function pickSurvivors(ordered: readonly Live[]): Live[] {
 }
 
 /**
+ * Elitism: the best candidate seen in the whole run is always a parent.
+ *
+ * Without it a generation can lose the champion, and three of the first five
+ * multi-round runs did: the flower reached 25 in round 2 and finished at 24,
+ * the black hole 24 then 23. That costs twice. The loop throws away its own
+ * best work, and the UI reports round 1 against the last round, so a run
+ * advertises a smaller climb than it actually achieved.
+ *
+ * The champion takes one of the two slots and the current generation's best
+ * takes the other, so a round that beats the record still replaces it and the
+ * six children are never both bred from the same source. Diversity is preserved
+ * by the mutation prompt, which spends two of its six on a fresh construction
+ * regardless of the parents.
+ */
+function withChampion(champion: Live | undefined, survivors: Live[]): Live[] {
+  if (champion === undefined) return survivors;
+  const best = survivors[0];
+  if (best === undefined) return [champion];
+  if (best.id === champion.id || best.rank >= champion.rank) return survivors;
+  return [champion, best].slice(0, SURVIVORS);
+}
+
+/**
  * Reorders `scored` by the labels the model returned.
  *
  * Null when the answer is not a permutation of the labels offered. Nothing
@@ -127,6 +150,8 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
   const runId = await store.createRun(prompt);
   const pool = await createPool(poolSize());
   let parents: Live[] = [];
+  /** Best candidate of the run so far. Never dropped from the parent set. */
+  let champion: Live | undefined;
   let firstBest: Live | undefined;
 
   try {
@@ -191,8 +216,13 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
         }),
       );
 
-      parents = pickSurvivors(await orderGeneration(prompt, live));
-      if (gen === 1) firstBest = parents[0];
+      const survivors = pickSurvivors(await orderGeneration(prompt, live));
+      if (gen === 1) firstBest = survivors[0];
+      const contender = survivors[0];
+      if (contender !== undefined && (champion === undefined || contender.rank > champion.rank)) {
+        champion = contender;
+      }
+      parents = withChampion(champion, survivors);
       if (parents.length > 0) await store.markSurvivors(parents.map((p) => p.id));
       await store.setGenerationStatus(generationId, "done");
 
@@ -206,7 +236,7 @@ export async function runOnce(prompt: string): Promise<store.RunId> {
       if (parents.length === 0) break;
     }
 
-    await reportImprovement(prompt, firstBest, parents[0]);
+    await reportImprovement(prompt, firstBest, champion);
     await store.setRunStatus(runId, "done");
     return runId;
   } catch (err) {
