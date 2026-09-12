@@ -39,6 +39,7 @@ conflicts and of waiting.
 | `orchestrator/` | Pavle | [`docs/03-orchestrator-pavle.md`](docs/03-orchestrator-pavle.md) | `generate.ts`, `sandbox.ts`, `score.ts`, `loop.ts`, `server.ts` |
 | `web/` | Djordje | [`docs/04-web-djordje.md`](docs/04-web-djordje.md) | Convex backend (`convex/`), Vite React UI (`src/`), Render config |
 | `prompts/` | shared | | `codegen.md`, `rubric.md`, `mutation.md`, `demo-candidates.md`, `thesis-test.md` |
+| `experiments/` | Pavle | [`experiments/README.md`](experiments/README.md) | Versioned evidence: candidates, frames, manifests, and the review page |
 | `docs/` | shared | | this folder |
 
 ## The contracts are frozen
@@ -158,6 +159,7 @@ The markdown in this repo is a closed set. Do not add to it.
 | `harness/README.md` | Vuk | Snapshot name and the exact command line, which is how Pavle knows to swap out his stub |
 | `prompts/codegen.md`, `prompts/rubric.md` | Vuk | Model instructions |
 | `prompts/mutation.md`, `prompts/demo-candidates.md`, `prompts/thesis-test.md` | Pavle | Model instructions, the eight prompt candidates, and the one-shot counts |
+| `experiments/README.md` | Pavle | What each experiment measured and how to rerun it |
 | `.env.example` | shared | Every variable, no values |
 
 No `PROGRESS.md`, no `NOTES.md`, no `SUMMARY.md`, no plan or handoff files. A new markdown file is

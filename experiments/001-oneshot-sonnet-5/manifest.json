@@ -1,0 +1,31 @@
+{
+  "id": "001-oneshot-sonnet-5",
+  "model": "claude-sonnet-5",
+  "git": "6d49ecf",
+  "runs": {
+    "ink": {
+      "prompt": "ink dropping into water, slow, black on paper white",
+      "at": "2026-09-12T11:10:39Z",
+      "costUSD": 0.15210880000000002,
+      "genSeconds": 132
+    },
+    "rain": {
+      "prompt": "rain on a night window with city bokeh behind it",
+      "at": "2026-09-12T11:15:43Z",
+      "costUSD": 0.1652594,
+      "genSeconds": 127
+    },
+    "metal": {
+      "prompt": "molten metal cooling, dark crust forming, orange cracks",
+      "at": "2026-09-12T11:17:54Z",
+      "costUSD": 0.1624664,
+      "genSeconds": 122
+    },
+    "jelly": {
+      "prompt": "bioluminescent jellyfish pulsing in deep water",
+      "at": "2026-09-12T11:20:07Z",
+      "costUSD": 0.17856740000000002,
+      "genSeconds": 125
+    }
+  }
+}

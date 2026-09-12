@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "candidates": {
+      "type": "array", "minItems": 6, "maxItems": 6,
+      "items": {
+        "type": "object",
+        "properties": { "strategy": { "type": "string" }, "source": { "type": "string" } },
+        "required": ["strategy", "source"], "additionalProperties": false
+      }
+    }
+  },
+  "required": ["candidates"], "additionalProperties": false
+}

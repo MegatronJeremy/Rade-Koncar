@@ -2,18 +2,31 @@
 
 Owner: Pavle. Input to the thesis test. The three we demo are chosen from this list.
 
-## The eight
+## The five
 
-1. ink dropping into water, slow, black on paper white
-2. rain on a night window with city bokeh behind it
-3. stained glass window with the sun moving behind it
-4. aurora over a dark ridge, slow, green to violet
-5. molten metal cooling, dark crust forming, orange cracks
-6. knitted wool texture slowly breathing
-7. bioluminescent jellyfish pulsing in deep water
-8. oil slick on wet asphalt shifting colours
+1. a red ball bouncing on a white floor
+2. an analog clock with a sweeping second hand
+3. snow falling and settling into a pile at the bottom
+4. a candle flame flickering in the dark
+5. a pendulum swinging back and forth
 
-Each names a subject, a palette and a motion, which is one axis per scoring dimension in `rubric.md`.
+Every one is verifiable in a second by someone who knows nothing about graphics. That matters twice: it makes the thesis test fast to judge, and it makes the demo legible. A judge watching a bouncing ball go from hovering to bouncing needs no explanation. A judge watching abstract art get subtly better cannot tell whether the loop did anything.
+
+They are also hard for the right reason. A fragment shader is stateless: every pixel computes itself from scratch each frame, knowing nothing about the previous frame or its neighbours. So a bounce curve over `iTime`, three hands rotating at three rates, or snow that accumulates all have to be faked, and the model reliably gets them half right.
+
+| Prompt | Where one-shot goes wrong |
+|---|---|
+| bouncing ball | Ball hovers, drifts, or passes through the floor. Bounce has no gravity curve |
+| analog clock | Hand angles and rates wrong, hands missing, no centre pivot |
+| settling snow | Accumulation is impossible statelessly, so the pile never forms |
+| candle flame | Static orange blob instead of a flame shape with flicker |
+| pendulum | Constant-speed swing rather than slowing at the extremes |
+
+## Rejected as too abstract
+
+An earlier list ran ink in water, rain on a night window, molten metal and a jellyfish, recorded in `experiments/001-oneshot-sonnet-5`. All 24 candidates compiled and rendered, but "does this look like ink in water" is a judgment call even for a person, which makes it slow to score and unconvincing on video. Concrete beats atmospheric.
+
+Also avoid: traffic light cycling, loading spinner, progress bar. Those come back six of six.
 
 ## Banned
 
