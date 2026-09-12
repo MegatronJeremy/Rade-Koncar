@@ -39,6 +39,10 @@ skills-lock.json
 /AGENTS.md
 /CLAUDE.md
 
+# Copied from harness/harness.html by scripts/copy-harness.mjs on predev and
+# prebuild. Committing it would leave two copies to drift apart.
+/public/harness.html
+
 # Stray tsc output next to the Convex sources. Anchored to this directory only:
 # convex/_generated/*.js is committed on purpose, since the Render build imports
 # from it and never runs `npx convex dev`.

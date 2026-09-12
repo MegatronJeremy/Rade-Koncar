@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Candidate } from "../types";
 
 interface CandidateDetailProps {
@@ -42,6 +42,68 @@ const CopyButton = ({ source }: { readonly source: string }): React.JSX.Element 
   );
 };
 
+/**
+ * The live shader view, `harness/harness.html` in an iframe. It is the same page
+ * the sandbox renders through, so what runs here is what the scorer saw.
+ *
+ * Source goes in by postMessage rather than a query string: shaders run to
+ * several kilobytes and URLs have limits.
+ *
+ * If the page does not report itself ready, the caller falls back to the plain
+ * source listing. A judge meeting an empty box is worse than a judge meeting
+ * text, and the copy step that puts this file in `public/` is a build detail
+ * that can fail without anyone noticing until the deploy.
+ */
+const HARNESS_URL = "/harness.html?embed=1&live=1";
+const HARNESS_TIMEOUT_MS = 2500;
+
+const LiveShader = ({
+  source,
+  onFailed,
+}: {
+  readonly source: string;
+  readonly onFailed: () => void;
+}): React.JSX.Element => {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const ready = useRef<boolean>(false);
+
+  useEffect(() => {
+    const send = (): void => {
+      frame.current?.contentWindow?.postMessage(
+        { type: "harness:source", source, autoplay: true },
+        "*",
+      );
+    };
+
+    const onMessage = (event: MessageEvent): void => {
+      if (event.source !== frame.current?.contentWindow) return;
+      const data: unknown = event.data;
+      if (typeof data !== "object" || data === null) return;
+      if ((data as { type?: unknown }).type !== "harness:ready") return;
+      ready.current = true;
+      send();
+    };
+
+    window.addEventListener("message", onMessage);
+    // harness:ready can fire before this effect subscribes, so push once anyway.
+    const push = window.setTimeout(send, 150);
+    const giveUp = window.setTimeout(() => {
+      if (!ready.current) onFailed();
+    }, HARNESS_TIMEOUT_MS);
+
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.clearTimeout(push);
+      window.clearTimeout(giveUp);
+    };
+    // onFailed must be referentially stable. The grid re-renders every 500 ms to
+    // cycle frames, and an inline callback here would restart the timeout on
+    // every one of those, so the fallback would never fire.
+  }, [source, onFailed]);
+
+  return <iframe ref={frame} className="detail-live" src={HARNESS_URL} title="Live shader" />;
+};
+
 export const CandidateDetail = ({
   candidate,
   parents,
@@ -49,12 +111,17 @@ export const CandidateDetail = ({
   onClose,
 }: CandidateDetailProps): React.JSX.Element => {
   const ref = useRef<HTMLDialogElement>(null);
+  const [liveFailed, setLiveFailed] = useState<boolean>(false);
+  const onLiveFailed = useCallback(() => setLiveFailed(true), []);
 
   useEffect(() => {
     const dialog = ref.current;
     if (dialog === null || dialog.open) return;
     dialog.showModal();
   }, []);
+
+  // A candidate that never compiled has nothing to run, so it keeps the listing.
+  const canRunLive = !liveFailed && candidate.status !== "compile_error" && candidate.source.length > 0;
 
   const { scores } = candidate;
 
@@ -179,10 +246,14 @@ export const CandidateDetail = ({
 
         <section className="detail-source">
           <div className="detail-source-head">
-            <h3>Shader</h3>
+            <h3>{canRunLive ? "Shader, running live" : "Shader"}</h3>
             <CopyButton source={candidate.source} />
           </div>
-          <pre>{candidate.source}</pre>
+          {canRunLive ? (
+            <LiveShader source={candidate.source} onFailed={onLiveFailed} />
+          ) : (
+            <pre>{candidate.source}</pre>
+          )}
         </section>
       </div>
     </dialog>
