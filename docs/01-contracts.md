@@ -193,6 +193,9 @@ The mutation prompt (`prompts/mutation.md`) receives the original prompt, both s
 `.env.example` lists every variable with no values:
 
 ```
+LLM_PROVIDER
+CLAUDE_BINARY
+CLAUDE_CLI_MODEL
 XAI_API_KEY
 XAI_MODEL
 DAYTONA_API_KEY
@@ -210,7 +213,9 @@ VITE_ORCHESTRATOR_URL
 
 ## Stack constraints
 
-- **x.ai** — OpenAI-compatible chat completions, so the standard OpenAI SDK works with a different `baseURL` and key. Model name comes from `XAI_MODEL`. Check the console for the current vision-capable model and **do not hardcode one** — model IDs change and a hardcoded stale one fails at the worst time.
+- **Models go through one interface.** `orchestrator/llm.ts` exposes `generateCandidates(prompt)` and `scoreFrames(prompt, pngs)`. Two implementations behind it, selected by `LLM_PROVIDER`. The split exists because the API budget for the day is $35 per person and a full three-generation run costs roughly a dollar at Opus rates: enough for the deployed box, not enough to also absorb a day of debugging. The CLI carries development and the recorded demo at no cost to that budget.
+- **`claude-cli` is the local default.** Shells out to `claude -p --output-format json --model <id> --json-schema <schema>` with the prompt on stdin, the same pattern as Depth's `internal/platform/claude/claude.go`. `--json-schema` gives the same schema guarantee as the SDK path. The envelope carries `modelUsage[].costUSD`: log it, so spend is measured rather than estimated. Scoring needs `--allowedTools Read` plus absolute PNG paths in the prompt, since print mode reads images off disk. Note that `--tools` only advertises tools and `--allowedTools` grants them; without both, the call silently burns turns achieving nothing.
+- **x.ai is what the deployed orchestrator uses**, and the partner path. Because `claude-cli` cannot authenticate in a container, this is the only provider the public URL has: its vision call is load-bearing, not optional, and must be proven before 15:30. OpenAI-compatible chat completions, so the standard OpenAI SDK works with a different `baseURL` and key. Model name from `XAI_MODEL`. Read the current vision-capable id off the console and **do not hardcode one**, since ids change and a stale one fails at the worst time. No schema guarantee here: parse defensively and strip code fences.
 - **Daytona** — TypeScript SDK. Verify the exact method names for create-from-snapshot, upload file, exec and download file **in the SDK README before writing `sandbox.ts`**. Snapshot name from `DAYTONA_SNAPSHOT`.
 - **Harness image** — a `Dockerfile` based on the official Playwright image. **The image tag must match the Playwright version in `harness/package.json` exactly**, or Chromium will not be found. This is the most common way this setup fails and the symptom looks like broken infrastructure rather than a version mismatch.
 - **WebGL** — the context must be created with `preserveDrawingBuffer: true`, or `canvas.toDataURL()` returns an empty image because the browser is free to discard the buffer after drawing. Capture after a single explicit `renderAt(t)` draw. **No animation loop in the harness** — never read a wall clock, or the same shader produces different frames on different runs and nothing is reproducible.

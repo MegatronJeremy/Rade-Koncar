@@ -14,14 +14,14 @@ Before anything else: a public URL loading a hello world, auto-deploying from `m
 
 Nothing else matters until that is true. Deploy problems are the classic way a hackathon team discovers at 18:30 that it has no submission, and every hour we delay is an hour the problem stays hidden.
 
-You are the account owner for **two** services:
+| Service | Type | Deployed by | When |
+|---|---|---|---|
+| `web/` | Static site | You | Immediately, before anything else |
+| `orchestrator/` | Web service | Pavle, on your account | Stretch. Decided at 16:30, often not at all |
 
-| Service | Type | Deployed by |
-|---|---|---|
-| `web/` | Static site | You |
-| `orchestrator/` | Web service | Pavle — you wire the account |
+Only the first is required. Pavle runs the orchestrator on his laptop all day, because the provider he uses locally cannot authenticate in a container. If he asks for the second service, wire it; if 16:30 arrives without it, that is the expected outcome and not a problem.
 
-Pavle will ask for the second around 12:30. Say yes then, not at 17:00. It is a hard requirement that the whole product keeps working after we go home, and that only happens if his process is hosted rather than running on his laptop.
+**What carries the product instead is the pinned run.** Your static site plus Convex plus a pinned run is a complete, judgeable product with no orchestrator anywhere.
 
 ## First bullet — done by 13:00
 
@@ -46,6 +46,16 @@ Generation 1 stays pinned on the left, permanently, labelled **"one shot"**. The
 This is the thesis made visible: the left column is what the AI produces with no feedback loop, the right is the same prompt after three rounds of looking at its own output. It is the standing answer to the question that kills demos in this category — *wouldn't the model just get it right first try?*
 
 **Build it into the layout from the start.** Retrofitting a two-column comparison at 16:00 is exactly the kind of change that breaks the demo path on the day. It is on the never-cut list.
+
+## Graceful degradation: required, not a nicety
+
+The orchestrator is usually unreachable from the deployed site. **A judge must never see a red error.**
+
+- `VITE_ORCHESTRATOR_URL` may be **unset** in the deployed build. Handle absent config, not just a failed fetch.
+- On unset or unreachable, hide the prompt input entirely and render the pinned run with one quiet line: *live runs during the event*.
+- Never show a stack trace, a spinner that never resolves, or a disabled button with no explanation.
+
+Twenty minutes of work, and it is the difference between a judge seeing a finished product and a judge seeing something broken. Build it whether or not the orchestrator is ever deployed.
 
 ## The pinned-run landing state
 

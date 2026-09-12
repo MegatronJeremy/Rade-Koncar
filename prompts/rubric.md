@@ -1,6 +1,8 @@
 # Scoring rubric
 
-Owner: Vuk. Consumed by `orchestrator/score.ts`. One vision call per candidate that survives the prefilter.
+Owner: Vuk. Consumed by `orchestrator/score.ts` through `llm.ts`. One vision call per candidate that survives the prefilter.
+
+Provider neutral: the schema below is enforced by `zodOutputFormat` on the Anthropic path and parsed defensively on the x.ai path.
 
 The call receives the three frames (t=0, 1, 2 seconds) and the original prompt.
 

@@ -16,6 +16,7 @@ The plan is reverse-planned from 19:00, not forward from now. **Nothing ships af
 | **13:00** | **Gate:** one screenshot out of one real sandbox, visible in the grid at the public URL |
 | **15:30** | **Feature freeze.** Three generations end to end from the public URL on one demo prompt, one-shot column showing |
 | 15:30–17:00 | Run the three demo prompts. Pick the one with the biggest visible gap between generation 1 and 3. Fix only that path. **Pin the best run in Convex** |
+| **16:30** | Orchestrator deploy call. Not deployed by now means do not deploy: hide the prompt box, pin the best run |
 | **17:00** | Record. Two takes |
 | **18:00** | Submit the form. See `06-shipping.md`. Never submit at 18:58 |
 | 18:00–19:00 | README, repo tidy, resubmit final links |
@@ -67,6 +68,7 @@ A gate is a yes/no question with a pre-decided answer for "no". The point is to 
 | **13:00** | One screenshot out of one real sandbox in the grid at the public URL | Switch to one sandbox, one Chromium, six pages. Decide at 13:00, **not 14:00** |
 | 13:30 | Daytona concurrency limit known | Batches, or `POP = 4` |
 | 15:30 | Three generations end to end on the public URL | Cut from the list below until it is true |
+| 16:30 | Orchestrator deployed | Expected outcome is no. Hide the prompt box, pin the best run, move to the recording |
 
 ## Cut list, in order, if behind
 

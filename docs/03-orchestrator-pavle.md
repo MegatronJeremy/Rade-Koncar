@@ -56,18 +56,27 @@ At 12:30, five minutes with the whole team: pick the three demo prompts, and dec
 
 If Vuk's tab is not ready at 12:10, **run the candidates through Shadertoy in a browser tab instead.** Same test, same counts, zero dependency on our code.
 
-## Deploy — do not skip this
+## Deploy: local first, Render only if there is time
 
-**The orchestrator runs on Render as a web service, not on your laptop.**
+Run the orchestrator on your laptop all day with `LLM_PROVIDER=claude-cli`. Deploying it is a stretch goal, not a requirement, and here is why the requirement is already covered.
 
-If it lives on a laptop, the public URL becomes a dead app the moment the machine sleeps or the wifi drops. Judges click that link **days after the event**, when we have all gone home. That is the "working product" criterion failing silently a week later, and nobody will tell us.
+The hard requirement is a public URL that works. Djordje's static site plus Convex plus the **pinned run** satisfies it on its own: a judge opening the link days later watches a real three-generation run evolve with no orchestrator running anywhere. Deploying the orchestrator buys exactly one extra thing, which is a judge being able to type their own prompt.
 
-Two things, do both:
+So the pinned run is not a fallback, it is the delivery mechanism. **Call `pinRun` on the best run of the day and treat that as shipped.**
 
-1. Deploy `orchestrator/` to Render as a second web service. Djordje owns the account — **ask him at 12:30**, not at 17:00.
-2. **Pin the best run** with the `pinRun` mutation, so the public URL replays a real three-generation run even with the orchestrator down. See `04-web-djordje.md`.
+### Test `LLM_PROVIDER=xai` locally, once, early
 
-**CORS:** the browser calls `POST /run` directly from a different origin, so without permissive CORS headers the prompt box fails in the browser while working perfectly from curl. That exact mismatch has eaten an afternoon on many projects. Five minutes now.
+This is the trap in "local now, deploy later". `claude-cli` cannot authenticate in a container, so deploying changes the provider **and** the environment in the same moment, and a failure could be either. Five minutes with `LLM_PROVIDER=xai` on your laptop reduces the deploy to one variable.
+
+Prove the vision call specifically, not just codegen. It is the half that is unproven and the half the deployed path depends on.
+
+### Stay deploy-ready for free
+
+Three habits that cost nothing now and cost an hour at 17:00: config from env only, no absolute paths outside the harness output directory, CORS headers from the first commit. They are the laptop assumptions that accumulate quietly and then all fail at once.
+
+### The 16:30 call
+
+If the orchestrator is not deployed by 16:30, **do not deploy it.** Hide the prompt box, pin the best run, spend the time on the recording. Pushing an untested service live after feature freeze is how a working demo breaks.
 
 ## Second bullet
 
