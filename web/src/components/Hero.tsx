@@ -3,6 +3,7 @@ import { PromptBox } from "./PromptBox";
 
 interface HeroProps {
   readonly state: OrchestratorState;
+  readonly running: string | undefined;
   readonly submit: (prompt: string) => Promise<void>;
   readonly onBrowseSamples: () => void;
 }
@@ -13,10 +14,10 @@ interface HeroProps {
  * main feature to avoid a dead input is worse than a dead input that explains
  * itself and points somewhere useful.
  */
-export const Hero = ({ state, submit, onBrowseSamples }: HeroProps): React.JSX.Element => (
+export const Hero = ({ state, running, submit, onBrowseSamples }: HeroProps): React.JSX.Element => (
   <section className="stage stage-run">
     <p className="ask">Describe anything.</p>
-    <PromptBox state={state} submit={submit} />
+    <PromptBox state={state} running={running} submit={submit} />
     <p className="how">
       Six shaders get written, each renders in its own sandbox, and a model scores what they
       actually drew. The best two are rewritten with the criticism. Three rounds, about seven

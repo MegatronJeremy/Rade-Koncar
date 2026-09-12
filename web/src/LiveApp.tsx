@@ -70,6 +70,7 @@ export const LiveApp = (): React.JSX.Element => {
       {stage === "run" ? (
         <Hero
           state={orchestrator.state}
+          running={orchestrator.running}
           submit={orchestrator.submit}
           onBrowseSamples={() => setStage("samples")}
         />
