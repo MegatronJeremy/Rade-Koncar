@@ -2,18 +2,24 @@
 
 Owned by Pavle until 17:00, then everyone.
 
-Judging happens **after** the event, offline. The panel will mostly watch the video and click the link. For judging purposes the video *is* the product — budget real time for it.
+## Read this even if you think it is not your job
+
+Judging happens **after** the event, offline. The panel will mostly watch the video and click the link. **For judging purposes the video is the product** — what we built matters only insofar as it appears in three minutes of screen recording.
+
+The most common way a good hackathon project scores badly is showing nothing of the actual system, so it looks like there is no product. That is a failure of the last two hours, not of the first six.
 
 ## Hard requirements — no prize without these
 
 | # | Requirement | Owner | Done when |
 |---|---|---|---|
 | 1 | Team of 1–3 | — | We are 3 |
-| 2 | **Public repo**, open source | Djordje | Public, README with problem, stack, run steps |
+| 2 | **Public repo**, open source | Djordje | Public, all three as collaborators, README with problem, stack, run steps |
 | 3 | **Deployed live URL**, not localhost | Djordje | Opens cold on a phone, in an incognito window |
 | 4 | **Video demo**, ~3 min | Pavle | Uploaded, plays without login |
 | 5 | Only work built today is judged | all | README says what is new |
-| 6 | **Form submitted by 19:00** | Pavle | Confirmation seen. Submit a draft at 18:00 and update it |
+| 6 | **Form submitted by 19:00** | Pavle | Confirmation seen. Submit a draft at 18:00 and update it later |
+
+You may start from a pre-existing project, but only today's work is judged. Everything here is new, so the README simply needs to say so.
 
 ## The recording — 17:00, two takes
 
@@ -21,20 +27,20 @@ Screen-record the browser at 1080p. Do not film the room.
 
 | Time | Beat |
 |---|---|
-| 0:00–0:20 | The problem, concretely. A shader that compiles cleanly and renders pure black is, to every existing tool, a success |
-| 0:20–0:35 | What we built, one sentence: we generate programs that draw pictures, and we let the model see what its program drew |
-| 0:35–2:20 | **The happy path on the real URL.** Prompt in. Grid evolving. **One-shot column against the final generation.** Click a compile-error tile. **Click the timed-out tile — one shader hung, its sandbox was killed, the other five kept rendering.** Click the winner, change one constant live, resize the window, export |
+| 0:00–0:20 | **The problem, concretely.** A shader that compiles cleanly and renders pure black is, to every existing tool, a complete success. The compiler says nothing is wrong. There are no tests. The model has no idea it failed |
+| 0:20–0:35 | **What we built, one sentence.** We generate programs that draw pictures, and we let the model see what its program drew |
+| 0:35–2:20 | **The happy path on the real URL.** Prompt in. Grid evolving. **One-shot column against the final generation.** Click a compile-error tile and show the compiler message. **Click the timed-out tile — one shader hung, its sandbox was killed, the other five kept rendering.** Click the winner, change one constant live, resize the window, export |
 | 2:20–2:45 | Architecture in one diagram, 15 seconds |
 | 2:45–3:00 | What it becomes beyond today |
 
-Non-negotiables, learned the hard way at the FinTech hackathon:
+Non-negotiables:
 
-- **Show the actual system.** Statistics are not enough. If we show nothing, it looks like we have no product.
-- Lead with the core, never with a side tool built at the end.
+- **Show the actual system.** Statistics about it are not enough. If we show nothing, it looks like we have nothing.
+- Lead with the core, never with a side feature built at the end.
 - Rehearse the English out loud at least twice before recording.
 - If the judges have no question afterwards, we failed. Leave one deliberate hook.
 
-The timed-out tile is the strongest fifteen seconds in the video for the Daytona prize. Do not let it get cut for time.
+**The timed-out tile is the strongest fifteen seconds in the video** for the sandbox prize. Do not let it get cut for time.
 
 ## Submission checklist — 18:00
 
@@ -48,13 +54,20 @@ The timed-out tile is the strongest fifteen seconds in the video for the Daytona
 
 ## Three answers to have ready
 
-**Why Daytona?** Each candidate runs in its own browser process with a hard timeout, so one hung or OOMing shader cannot take down its siblings, and six render in parallel. Then point at the timed-out tile.
+These are the three questions this project will be asked. Have the answers in your mouth, not in your head.
 
-**Wouldn't the model do this one-shot?** Point at the left column. That is one-shot. The right column is three generations later. This is why the one-shot column is never cut.
+**"Why sandboxes? Why Daytona?"**
+Each candidate runs in its own browser process with a hard timeout, so one hung or out-of-memory shader cannot take down its siblings — and six render in parallel instead of one after another. Then point at the timed-out tile.
 
-**Isn't this just image generation?** It's code, not pixels. Edit a constant on camera, resize the window, export two kilobytes that run at any resolution forever.
+**"Wouldn't the model just get it right first try?"**
+Point at the left column. That is first try. The right column is the same prompt three generations later. This is why the one-shot column is never cut.
 
-## Prize map
+**"Isn't this just image generation?"**
+It's code, not pixels. Edit a constant on camera, resize the window, export two kilobytes that run at any resolution forever. A diffusion model cannot hand you that.
+
+## Judging and prizes
+
+Criteria, in scoring order: **Innovation (primary)**, working product, problem and solution clarity, execution, impact potential.
 
 | Prize | Sponsor | Value |
 |---|---|---|
@@ -64,6 +77,4 @@ The timed-out tile is the strongest fifteen seconds in the video for the Daytona
 | ABC Silicon Valley 2027 | ABC | 50% / 40% / 30% tuition |
 | Participation | Daytona | $100 credits each |
 
-The Daytona bounty is a separate, narrower pool. Most teams will never boot a sandbox. The timed-out tile in the video is how we claim it.
-
-Judging criteria, in scoring order: **Innovation (primary)**, working product, problem and solution clarity, execution, impact potential.
+The Daytona bounty is a separate, narrower pool — most teams will build an AI wrapper and never boot a sandbox. Our whole architecture depends on them honestly, and the timed-out tile in the video is how we make that legible in fifteen seconds.

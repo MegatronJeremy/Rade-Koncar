@@ -1,51 +1,83 @@
 # Orchestrator — Pavle
 
-You own `orchestrator/`. Standalone Node process, not Convex actions.
+## What you own
+
+`orchestrator/`. You own the loop: **prompt in, six shaders out, rendered, scored, the best two mutated, three times over.**
+
+It is a standalone Node process, not Convex functions. It calls x.ai to write shaders, Daytona to run them, and Convex to record everything as it happens.
+
+Read [`00-primer.md`](00-primer.md) first if you have not written shaders — you do not need to write GLSL, but you need to know why a shader can compile perfectly and still be worthless, because that is the entire product. Then [`01-contracts.md`](01-contracts.md) §§1, 2, 4, 5.
+
+## The five files
+
+| File | Does |
+|---|---|
+| `generate.ts` | Prompt → six `Candidate`s via x.ai. Signature check, one repair call on `compile_error` |
+| `sandbox.ts` | `renderInSandbox(sandbox, source): Promise<HarnessResult>` — ship source in, get frames back |
+| `score.ts` | Prefilter arithmetic, then the vision call. Returns the score object |
+| `loop.ts` | Three generations: generate, render six in parallel, score, pick two survivors, mutate |
+| `server.ts` | `POST /run { prompt, mode, steering? }` and CORS |
 
 ## First bullet
 
-Build `generate.ts` — prompt → six `Candidate`s via x.ai, signature check, one repair call with the log on `compile_error` — and `sandbox.ts` — `renderInSandbox(sandbox, source): Promise<HarnessResult>`.
+Build `generate.ts` and `sandbox.ts` **against a stub** — a fake `renderInSandbox` that copies the three fixture PNGs from `harness/fixtures/` and returns `status: "ok"` after a short delay.
 
-Build both **against a stub** that copies the three fixture PNGs from `harness/fixtures/` and returns `ok`. Never wait for Vuk. Swap the stub for the real sandbox the moment the snapshot name appears in `harness/README.md`.
+**Never wait for Vuk.** Swap the stub for the real sandbox the moment the snapshot name appears in `harness/README.md`. The signature is identical, so it is a one-line change.
 
 Then `loop.ts` and `server.ts`.
 
 **Done when** `POST /run` executes three generations end to end against the stub and every state change — queued, rendering, scoring, scored, survived — lands in Convex as it happens.
 
-**Do not wait on Convex to write `loop.ts`.** The state machine — queued, rendering, scoring, scored, survived — does not need Convex to exist. Build it against an in-memory logger and swap in the mutation calls when Djordje's `CONVEX_URL` lands, or you will be idle between roughly 12:45 and 13:00.
+**Do not wait on Convex to write `loop.ts` either.** The state machine does not need Convex to exist: build it against an in-memory logger and swap in the mutation calls when Djordje's `CONVEX_URL` lands. Otherwise you are idle between roughly 12:45 and 13:00.
+
+### Write status eagerly
+
+Set `candidates.status` at every step — queued, rendering, scoring, scored. The UI subscribes to it, so tiles visibly change while the user watches. **That is most of why the demo feels alive rather than like a progress bar**, and it costs you one mutation call per transition.
+
+### `compile_error` is not an error
+
+In generation 1 a large fraction of candidates will not compile. `HarnessResult.status` of `compile_error` or `timeout` comes back with **exit code 0** and is a normal, expected outcome that gets stored and displayed as a red tile. Only a non-zero exit means the harness itself broke.
+
+If you treat compile failures as exceptions your loop will fall over constantly in exactly the generation that matters most for the demo.
 
 ## The thesis test — 12:15 at the latest
 
-**Do this before building the loop.** It is the highest-value thirty minutes of the day.
+**Do this before building the loop.** It is the highest-value thirty minutes of the day and it is not optional.
 
-For each prompt in `prompts/demo-candidates.md`, generate six one-shot candidates, paste them into Vuk's standalone harness tab, and count how many render acceptably. Write the counts into `prompts/thesis-test.md`.
+For each prompt in `prompts/demo-candidates.md`: generate six one-shot candidates, paste them one by one into Vuk's standalone harness tab, and count how many render acceptably. Write the counts into `prompts/thesis-test.md`.
 
-Why it matters: if one-shot scores five or six out of six, the loop is decoration and the product needs rethinking. **We need to know that at 12:15, not at 17:00.** The three prompts we demo are the ones where one-shot gets roughly two of six.
+Judge "acceptable" by the three criteria in `00-primer.md` §8 — not blank, it moves, you would recognise the prompt from the image. **Be strict.** A generous count makes our own product look unnecessary.
 
-At 12:30, five minutes with the whole team: pick the three demo prompts, and decide whether reference mode becomes core (it does only if one-shot scored five of six on everything, meaning text prompts aren't discriminating).
+**Why this matters more than anything else you will do today:** our entire premise is that the model gets this wrong on the first attempt. If one-shot scores five or six out of six, the loop is decoration, the demo shows a grid that was already correct in round one, and we need to know that at 12:15 — not at 17:00 with the video half recorded.
+
+The three prompts we demo are the ones where one-shot gets roughly two out of six. That is the sweet spot: bad enough that improvement is obvious, good enough that convergence is achievable in three generations.
+
+At 12:30, five minutes with the whole team: pick the three demo prompts, and decide whether reference mode becomes core — it does only if one-shot scored five of six on everything, meaning text prompts are not discriminating and we need images as the target instead.
+
+If Vuk's tab is not ready at 12:10, **run the candidates through Shadertoy in a browser tab instead.** Same test, same counts, zero dependency on our code.
 
 ## Deploy — do not skip this
 
 **The orchestrator runs on Render as a web service, not on your laptop.**
 
-If it lives on a laptop, the public URL is a dead app the moment the machine sleeps or the wifi drops — and judges click that link days after the event, when we have all gone home. That is criterion #2, "working product", failing silently a week later.
+If it lives on a laptop, the public URL becomes a dead app the moment the machine sleeps or the wifi drops. Judges click that link **days after the event**, when we have all gone home. That is the "working product" criterion failing silently a week later, and nobody will tell us.
 
 Two things, do both:
 
-1. Deploy `orchestrator/` to Render as a second web service. Djordje already has the account wired; ask him for it at 12:30 rather than at 17:00.
-2. **Pin the best run** (`pinRun` mutation) so the public URL replays a real evolving grid even with the orchestrator down. See `04-web-djordje.md`.
+1. Deploy `orchestrator/` to Render as a second web service. Djordje owns the account — **ask him at 12:30**, not at 17:00.
+2. **Pin the best run** with the `pinRun` mutation, so the public URL replays a real three-generation run even with the orchestrator down. See `04-web-djordje.md`.
 
-CORS: the browser calls `POST /run` directly. Send permissive CORS headers or the prompt box fails in the browser while working fine from curl. Five minutes now, an hour if you find it at 16:00.
+**CORS:** the browser calls `POST /run` directly from a different origin, so without permissive CORS headers the prompt box fails in the browser while working perfectly from curl. That exact mismatch has eaten an afternoon on many projects. Five minutes now.
 
 ## Second bullet
 
 - Real sandbox fan-out with reuse across generations, per-candidate timeout.
-- `score.ts` — the deterministic prefilter as pure functions over pixel buffers: `flat`, `motion`, histogram distance. Yours, not Vuk's: you are the only consumer and he is on the critical path twice.
-- Scoring pipeline — prefilter first, vision call only on survivors.
+- `score.ts` — the deterministic prefilter as pure functions over pixel buffers: `flat`, `motion`, histogram distance. **Yours, not Vuk's**: you are the only consumer and he is on the critical path twice.
+- Scoring pipeline — prefilter first, vision call only on what survives it. Most generation-1 candidates are black, and a black candidate should cost you a standard deviation, not an API call.
 - Mutation prompt.
 - Reference mode: Fal call at run start, reference stored on the run, image attached to the vision call.
-- **If the Daytona concurrency limit is under six, decide by 13:30: batches, or `POP = 4`.** Do not discover this at 15:00.
+- **If the Daytona concurrency limit is under six, decide by 13:30: batches, or `POP = 4`.** Do not discover this at 15:00 — check the account limit early, it is a two-minute question.
 
 ## Logging
 
-Log every external call — x.ai, Daytona, Convex, Fal — with its duration. When something is slow at 16:00 this is the only thing that will tell you which one.
+Log every external call — x.ai, Daytona, Convex, Fal — with its duration. At 16:00, when a run takes ninety seconds and it should take twenty, this is the only thing that will tell you which of the four is responsible.
