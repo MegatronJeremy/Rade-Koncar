@@ -1,0 +1,710 @@
+/*
+  Shader Arena — contact sheet on a lightbox.
+
+  The ground is a mid-dark neutral rather than near-black on purpose: rendered
+  frames are the content, and neutral grey is what image work is judged against.
+  Colour is reserved for state — chinagraph yellow marks a survivor, muted red
+  marks a candidate that never rendered. Nothing else is coloured.
+*/
+
+:root {
+  --ground: #2b2f33;
+  --bench: #26292d;
+  --well: #1c1f22;
+  --raised: #34383d;
+  --rule: #4a5057;
+  --rule-soft: #3b4045;
+
+  --ink: #eceef0;
+  --ink-dim: #99a0a7;
+  --ink-faint: #6e757c;
+
+  --mark: #f0b429;
+  --fail: #d4726a;
+  --fail-dim: #7d4741;
+
+  --frame: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --machine: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --gap: 14px;
+  --pad: 22px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--frame);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+/* ---------- header ---------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px var(--pad);
+  padding: 18px var(--pad) 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.thesis {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--ink-dim);
+  font-size: 13.5px;
+}
+
+.empty {
+  padding: 60px var(--pad);
+}
+
+/* ---------- run bar ---------- */
+
+.run-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 12px var(--pad);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bench);
+}
+
+.run-state {
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  color: var(--ink-dim);
+  font-family: var(--machine);
+  font-size: 11.5px;
+}
+
+.run-state.is-live {
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.run-prompt {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.run-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 12px;
+}
+
+.run-meta b {
+  color: var(--ink-dim);
+  font-weight: 500;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-swatch {
+  width: 9px;
+  height: 9px;
+  border-top: 2px solid var(--mark);
+  border-right: 2px solid var(--mark);
+}
+
+/* ---------- the two columns ---------- */
+
+.sheet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.column {
+  padding: 16px var(--pad) 40px;
+  min-width: 0;
+}
+
+.column + .column {
+  border-left: 1px solid var(--rule);
+}
+
+.column-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  min-height: 42px;
+}
+
+.column-title {
+  margin: 0 0 1px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.column-note {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.control .column-title {
+  color: var(--ink-dim);
+}
+
+.gen-picker {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.gen-pick {
+  position: relative;
+  width: 30px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--rule-soft);
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.gen-pick:hover {
+  border-color: var(--rule);
+  color: var(--ink-dim);
+}
+
+.gen-pick.is-current {
+  border-color: var(--ink-dim);
+  color: var(--ink);
+}
+
+.gen-live {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--mark);
+}
+
+.grid {
+  display: grid;
+  gap: var(--gap);
+}
+
+/* Both columns are three up at the same size: the control and the result are
+   compared under identical framing, and neither column ends ragged. */
+.grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* ---------- tiles ---------- */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bench);
+  border: 1px solid var(--rule-soft);
+}
+
+.tile-hit {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.tile:hover {
+  border-color: var(--rule);
+}
+
+.tile:has(.tile-hit:focus-visible) {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+.tile-frame {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--well);
+  overflow: hidden;
+}
+
+.tile-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The survivor mark: a crop bracket, the way keepers get marked on a contact sheet. */
+.survivor-mark {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 13px;
+  height: 13px;
+  border-top: 2px solid var(--mark);
+  border-right: 2px solid var(--mark);
+}
+
+.survived {
+  border-color: var(--mark);
+}
+
+.failed {
+  border-color: var(--fail-dim);
+}
+
+.tile-log {
+  height: 100%;
+  margin: 0;
+  padding: 10px;
+  overflow: hidden;
+  color: var(--fail);
+  font-family: var(--machine);
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tile-stalled {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 14px;
+}
+
+.stalled-word {
+  color: var(--fail);
+  font-family: var(--machine);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tile-stalled span {
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* In-flight states. The orchestrator writes status at every step, so these are
+   what the grid looks like for most of a live run — they have to read as alive. */
+.tile-working {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.working-word {
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 12px;
+}
+
+.tile-working.is-rendering,
+.tile-working.is-scoring {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(255 255 255 / 7%) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: sweep 1.5s linear infinite;
+}
+
+.tile-working.is-rendering .working-word,
+.tile-working.is-scoring .working-word {
+  color: var(--ink-dim);
+}
+
+@keyframes sweep {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+.tile-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px 9px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.tile-strategy {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-score {
+  color: var(--ink-dim);
+  font-family: var(--machine);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.survived .tile-score {
+  color: var(--mark);
+}
+
+.tile-score.is-null {
+  color: var(--fail);
+}
+
+.tile-critique {
+  margin: 0;
+  padding: 0 10px 9px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* ---------- detail dialog ---------- */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: hidden;
+  background: var(--bench);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+.detail::backdrop {
+  background: rgb(12 14 16 / 78%);
+}
+
+.detail-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px var(--pad);
+  border-bottom: 1px solid var(--rule);
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.detail-sub {
+  margin: 2px 0 0;
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 12px;
+}
+
+.detail-close,
+.copy {
+  flex: none;
+  padding: 5px 11px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-dim);
+  font-family: var(--machine);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detail-close:hover,
+.copy:hover {
+  border-color: var(--ink-dim);
+  color: var(--ink);
+}
+
+.detail-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--pad);
+  overflow-y: auto;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--pad);
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.strip-cell {
+  margin: 0;
+}
+
+.strip-cell img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--well);
+  border: 1px solid var(--rule-soft);
+}
+
+.strip-cell figcaption {
+  margin-top: 5px;
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 11px;
+}
+
+.detail-fail {
+  padding: 16px;
+  background: var(--well);
+  border: 1px solid var(--fail-dim);
+}
+
+.detail-fail h3 {
+  margin: 0 0 8px;
+  color: var(--fail);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.detail-fail p {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+.detail-fail pre {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--fail);
+  font-family: var(--machine);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.scores {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-family: var(--machine);
+  font-size: 12.5px;
+}
+
+.scores caption {
+  margin-bottom: 7px;
+  color: var(--ink-faint);
+  font-family: var(--frame);
+  font-size: 12px;
+  text-align: left;
+}
+
+.scores th,
+.scores td {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-weight: 400;
+  text-align: left;
+}
+
+.scores th {
+  color: var(--ink-dim);
+}
+
+.scores td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.scores-total th,
+.scores-total td {
+  border-bottom: 0;
+  color: var(--ink);
+}
+
+.detail-block {
+  margin-bottom: 20px;
+}
+
+.detail-block h3 {
+  margin: 0 0 6px;
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.critique {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.detail-muted {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.lineage {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lineage li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13.5px;
+}
+
+.lineage b {
+  color: var(--mark);
+  font-family: var(--machine);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.detail-source-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-source-head h3 {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detail-source {
+  margin-top: 4px;
+}
+
+.detail-source pre {
+  margin: 0;
+  max-height: 340px;
+  padding: 12px;
+  overflow: auto;
+  background: var(--well);
+  border: 1px solid var(--rule-soft);
+  color: var(--ink-dim);
+  font-family: var(--machine);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 860px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .column + .column {
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+  }
+
+  .control .grid,
+  .latest .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-meta {
+    margin-left: 0;
+  }
+
+  /* No hover on a phone, so let the label wrap instead of truncating. */
+  .tile-strategy {
+    overflow: visible;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-working.is-rendering,
+  .tile-working.is-scoring {
+    animation: none;
+  }
+}

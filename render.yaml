@@ -1,0 +1,27 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Dashboard: New → Blueprint → pick this repo → Apply.
+# Everything below is read from here, so there are no fields to fill in by hand.
+#
+# Environment variables are deliberately not declared yet. Nothing in the app
+# reads them, and an unset `sync: false` variable is one more thing that can
+# stop an Apply. Add them in the dashboard when they exist:
+#   VITE_CONVEX_URL        once `npx convex dev` prints it
+#   VITE_ORCHESTRATOR_URL  once Pavle's service is up
+#
+# The orchestrator web service is not here either — its folder does not exist
+# yet, so it would only produce a failing service. Add it once `orchestrator/`
+# is on main.
+
+services:
+  - type: web
+    name: shader-arena
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    # Single-page app: serve index.html for any path that is not a real file.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
