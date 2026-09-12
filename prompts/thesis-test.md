@@ -1,6 +1,6 @@
 # Thesis test
 
-Owner: Pavle. Run before the loop is built. Executed by Vuk at 13:30 on the harness.
+Owner: Pavle. Run before the loop is built.
 
 ## What it establishes
 
@@ -18,38 +18,54 @@ For each prompt in `demo-candidates.md`:
 
 If the harness tab is not ready, paste into Shadertoy instead. Same test, same counts, no dependency on our code.
 
-### How this run was actually done
+## Results: the five concrete prompts
 
-48 candidates, one `claude -p` call per prompt through `codegen.md` unmodified, $2.55 and 96 to 156 seconds per prompt. No repair call, no feedback, exactly what generation 1 produces.
-
-Rendered with `harness/batch.js`, which lays the six t1 frames of a generation out as one sheet. "Not blank" and "it moves" are the arithmetic from contract §4 (luminance stddev under 0.02, mean absolute t0/t2 difference under 0.01). "Recognisable" is a human looking at the sheet.
-
-The sheets behind the three chosen prompts and behind aurora are in `thesis-sheets/`, so the counts below can be disagreed with rather than taken on trust. To regenerate any of them:
-
-```bash
-cd harness && node batch.js --in <dir of .glsl> --out <dir>
-```
-
-## Results
+The live list. `experiments/002-oneshot-sonnet-5` holds the runs.
 
 | # | Prompt | Acceptable / 6 | Notes |
 |---|---|---|---|
-| 1 | ink dropping into water | **2** | All six are black on white and all six move. Five are hard-edged dots or a star burst; only c1 and c3 have the diffusing edge that reads as ink. Nothing produces tendrils |
-| 2 | rain on a night window | **2** | c3 is the only one with both bokeh and streaks. c1 has bokeh and no rain, c5 rain and no bokeh, c2 is green confetti polygons, c0 is static |
-| 3 | stained glass, sun behind | **3** | Too easy. Leaded panes are a Voronoi exercise and the model knows it. c1, c2 and c5 all read correctly |
-| 4 | aurora over a dark ridge | **0** | Palette and ridge are right and several look good. All six fail on motion, every one under 0.01. See the sampling note below |
-| 5 | molten metal cooling | **1** | The whole set moves well and the failure is pure subject: five of six are uniformly orange with no dark crust, the inverse of what was asked. Only c4 has dark plates with glowing edges |
-| 6 | knitted wool breathing | **1** | Nothing reads as knitting. c5 is a woven grid in purple and orange, the only one with any textile structure. The rest are marbled cloud, Voronoi cells, a radial burst |
-| 7 | bioluminescent jellyfish | **3** | Too easy. A glowing bell with tentacles is a radial SDF. c0, c3, c4 all read correctly |
-| 8 | oil slick on wet asphalt | **1** | Systematic failure: garish full spectrum rainbow instead of thin film iridescence, and no asphalt. Only c2 is close |
+| 1 | a red ball bouncing on a white floor | | |
+| 2 | an analog clock with a sweeping second hand | | |
+| 3 | snow falling and settling into a pile | | |
+| 4 | a candle flame flickering in the dark | | |
+| 5 | a pendulum swinging back and forth | | |
 
-**13 of 48 acceptable, 27%.** The thesis holds.
+## Decision
 
-### Where the failures are, which is not where the docs assume
+Three demo prompts, chosen at roughly two of six:
 
-**48 of 48 compiled.** Zero compile errors, zero timeouts, across every prompt. The helper block and the constraints in `codegen.md` are doing their job.
+1.
+2.
+3.
 
-That contradicts two things written elsewhere. `01-contracts.md` §1 calls `compile_error` "common in generation 1" and `02-harness-vuk.md` says "perhaps half the candidates fail to compile". Neither is true of this codegen prompt. Red tiles will not appear on their own, so a demo that relies on showing one needs `hang.glsl` or a hand written candidate.
+Reference mode becomes core only if one-shot scored five or six on everything, which would mean text prompts are not discriminating and the target needs to be an image instead.
+
+---
+
+## Prior run: the eight abstract prompts
+
+48 candidates, six per prompt, on the prompt list as it stood before 13:25. That list was retired for being too abstract to judge quickly and unconvincing on video, so **these counts do not select anything.** They are kept because two of the findings survive the change of list.
+
+Generated with one `claude -p` call per prompt through `codegen.md` unmodified, $2.55, 96 to 156 seconds per prompt, no repair call. Rendered with `harness/batch.js`, which lays a generation's six t1 frames out as one sheet. Sheets for four of them are in `thesis-sheets/`.
+
+| # | Prompt | Acceptable / 6 | Notes |
+|---|---|---|---|
+| 1 | ink dropping into water | 2 | All six black on white and all six move. Five are hard-edged dots or a star burst; only two have the diffusing edge that reads as ink. Nothing produces tendrils |
+| 2 | rain on a night window | 2 | One has both bokeh and streaks. One has bokeh and no rain, one rain and no bokeh, one is green confetti polygons, one is static |
+| 3 | stained glass, sun behind | 3 | Too easy. Leaded panes are a Voronoi exercise and the model knows it |
+| 4 | aurora over a dark ridge | 0 | Palette and ridge right, several look good, all six fail on motion |
+| 5 | molten metal cooling | 1 | Whole set moves well and the failure is pure subject: five of six are uniformly orange with no dark crust, the inverse of what was asked |
+| 6 | knitted wool breathing | 1 | Nothing reads as knitting. One woven grid in purple and orange, the rest marbled cloud and Voronoi cells |
+| 7 | bioluminescent jellyfish | 3 | Too easy. A glowing bell with tentacles is a radial SDF |
+| 8 | oil slick on wet asphalt | 1 | Garish full spectrum rainbow instead of thin film iridescence, and no asphalt |
+
+13 of 48 acceptable, 27%. The thesis holds, which is the one thing this run was for.
+
+### Finding: generation 1 does not fail to compile
+
+**48 of 48 compiled. Zero compile errors, zero timeouts, across every prompt.** `experiments/001` saw the same on its 24, so it is 72 for 72 across two independent runs and two models.
+
+`01-contracts.md` §1 calls `compile_error` "common in generation 1" and `02-harness-vuk.md` says "perhaps half the candidates fail to compile". Neither holds for this codegen prompt. Red tiles do not appear on their own, so a demo that wants one needs `hang.glsl` or a hand written candidate.
 
 Failure counts by criterion, out of 48:
 
@@ -59,38 +75,21 @@ Failure counts by criterion, out of 48:
 | Does not move | 9, of which 6 are the aurora set |
 | Not recognisable | 24 |
 
-Subject is the dominant failure by a wide margin, and subject is exactly what the vision half of the rubric judges. The arithmetic prefilter catches 11 of 35 failures on its own, for no model call.
+Subject dominates, and subject is exactly what the vision half of the rubric judges. The arithmetic prefilter catches 11 of 35 failures on its own, for no model call.
 
-### The t=0,1,2 sampling window under-measures slow prompts
+### Finding: the t=0,1,2 window under-measures slow motion
 
-Aurora scores 0 of 6 on motion. Measuring the same six candidates over wider windows:
+This one is independent of which prompts we use. The aurora set scored 0 of 6 on motion. The same six candidates over wider windows:
 
-| Window | Aurora candidates above the 0.01 motion threshold |
+| Window | Above the 0.01 motion threshold |
 |---|---|
 | t = 0, 1, 2 | 0 of 6 |
 | t = 0, 2, 4 | 1 of 6 |
 | t = 0, 5, 10 | 3 of 6 |
 | t = 0, 15, 30 | 3 of 6 |
 
-So it is partly real and partly measurement. Four of six are genuinely near-static even over thirty seconds, but three cross the threshold once the window reaches ten seconds. Ink, by contrast, reads 0.108 at two seconds and 0.711 at ten: fast prompts are unaffected either way.
+Partly real and partly measurement: four of six are genuinely near-static even over thirty seconds, but three cross the threshold once the window reaches ten seconds. Fast prompts are unaffected, ink reads 0.108 at two seconds and 0.711 at ten.
 
-Three of the eight prompts say "slow" or "slowly". Contract §1 fixes the frames at 0, 1 and 2 seconds, so **this is a contract question and nobody should change it alone.** Raising it, not changing it. If we want aurora in play, the change is one line in the harness and one in the rubric.
+It still applies to the concrete list. A pendulum with a slow period and a settling snow pile are both cases where two seconds may not contain enough change to measure.
 
-## Decision
-
-Three demo prompts, chosen at roughly two of six:
-
-1. **ink dropping into water, slow, black on paper white** (2/6)
-2. **rain on a night window with city bokeh behind it** (2/6)
-3. **molten metal cooling, dark crust forming, orange cracks** (1/6)
-
-Ink and rain sit exactly on the selection rule. The third comes from the group at 1 of 6, and molten metal is the strongest of those three because its failure is systematic, visible at thumbnail size and obviously fixable: generation 1 is uniform orange mush, and the target is dark crust with glowing cracks. It also already moves on all six, so the loop only has to climb on palette and subject.
-
-Not chosen:
-
-- **Stained glass (3/6) and jellyfish (3/6)** are what the banned list warns about. The model does them well one-shot and the grid would barely change across three generations.
-- **Knitted wool (1/6)** is closer to zero than to one. Nothing in the set reads as knitting, so there is little for the loop to climb on.
-- **Oil slick (1/6)** is the reserve. Its failure is as systematic as molten metal's and visually striking, but the palette it has to reach is subtler.
-- **Aurora (0/6)** is the most interesting failure in the set and it is unusable under the current contract. If the sampling window changes it becomes a strong candidate, because the fix the loop needs to discover is a single scalar on `iTime` and the before and after would be unambiguous.
-
-Reference mode stays a stretch. One-shot scored five or six on nothing, so text prompts discriminate fine and there is no reason to move the target to an image.
+Contract §1 fixes the frames at 0, 1 and 2 seconds, so **this is raised, not changed.** If we want it, the change is one line in the harness and one in the rubric.
