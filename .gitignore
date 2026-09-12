@@ -9,6 +9,11 @@ dist/
 build/
 *.tsbuildinfo
 
+# Local iterations. Throwaway by design: they exist so a run can be judged
+# before anyone decides to keep it. experiments/samples-backup is deliberate and
+# stays tracked.
+experiments/local-*/
+
 # Harness render output. `node render.js --out out/` writes here.
 # Committed frames live in harness/fixtures/ and are not covered by this.
 out/
