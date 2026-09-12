@@ -1,4 +1,4 @@
-import type { Run } from "../types";
+import type { Candidate, Run } from "../types";
 
 interface SampleBarProps {
   readonly samples: readonly Run[];
@@ -8,17 +8,42 @@ interface SampleBarProps {
   readonly liveRunning: boolean;
 }
 
-const bestOf = (run: Run, index: number): number => {
+const winnerOf = (run: Run, index: number): Candidate | undefined => {
   const g = run.generations[index];
-  if (g === undefined) return 0;
-  return g.candidates.reduce((best, c) => Math.max(best, c.scores?.total ?? 0), 0);
+  if (g === undefined) return undefined;
+  return g.candidates.reduce<Candidate | undefined>(
+    (best, c) => ((c.scores?.total ?? -1) > (best?.scores?.total ?? -1) ? c : best),
+    undefined,
+  );
+};
+
+const Shot = ({
+  candidate,
+  label,
+}: {
+  readonly candidate: Candidate | undefined;
+  readonly label: string;
+}): React.JSX.Element => {
+  const src = candidate?.frameUrls[1] ?? candidate?.frameUrls[0];
+  return (
+    <figure className="shot">
+      {src === undefined ? (
+        <div className="shot-blank" />
+      ) : (
+        <img src={src} alt={`${label}: ${candidate?.strategy ?? ""}`} loading="lazy" />
+      )}
+      <figcaption>
+        {label}
+        {candidate?.scores !== undefined ? <b> {candidate.scores.total}</b> : null}
+      </figcaption>
+    </figure>
+  );
 };
 
 /**
- * The showcase. Samples are finished runs kept so there is something real on
- * screen before anyone types, and so the page still shows the product when no
- * orchestrator is reachable. The prompt box is the main event; this is the
- * evidence sitting beside it.
+ * The showcase. Every sample is on screen at once, each showing the best of its
+ * first round beside the best of its last: that pair is the whole argument, and
+ * a row of text buttons hid it. Clicking a card opens the full run below.
  */
 export const SampleBar = ({
   samples,
@@ -31,13 +56,15 @@ export const SampleBar = ({
   return (
     <section className="samplebar" aria-label="Sample runs">
       <p className="samplebar-lede">
-        <strong>Samples.</strong> Finished runs, three rounds each. Pick one, or send your own
-        prompt above.
+        <strong>Samples.</strong> Finished runs. Each shows the best shader of round one beside
+        the best of the last round. Open one, or send your own prompt.
       </p>
       <div className="samplebar-row">
         {samples.map((run) => {
-          const first = bestOf(run, 0);
-          const last = bestOf(run, run.generations.length - 1);
+          const last = run.generations.length - 1;
+          const before = winnerOf(run, 0);
+          const after = winnerOf(run, last);
+          const gain = (after?.scores?.total ?? 0) - (before?.scores?.total ?? 0);
           const active = !liveRunning && run.id === selectedId;
           return (
             <button
@@ -47,10 +74,17 @@ export const SampleBar = ({
               onClick={() => onPick(run.id)}
               aria-pressed={active}
             >
+              <span className="sample-shots">
+                <Shot candidate={before} label="round 1" />
+                <span className="sample-arrow" aria-hidden="true">
+                  →
+                </span>
+                <Shot candidate={after} label={`round ${last + 1}`} />
+              </span>
               <span className="sample-prompt">{run.prompt}</span>
               <span className="sample-meta">
                 {run.generations.length} rounds
-                {last > first ? <b> · best {first} → {last}</b> : null}
+                {gain > 0 ? <b> · +{gain}</b> : null}
               </span>
             </button>
           );

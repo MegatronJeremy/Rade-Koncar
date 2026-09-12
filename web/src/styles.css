@@ -814,7 +814,7 @@ body {
 }
 
 .samplebar-lede {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: var(--ink-faint);
   font-size: 12.5px;
 }
@@ -826,17 +826,17 @@ body {
 .samplebar-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .sample {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 7px;
   align-items: flex-start;
-  padding: 9px 13px;
+  padding: 11px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 11px;
   background: transparent;
   color: var(--ink-dim);
   font: inherit;
@@ -854,8 +854,48 @@ body {
   color: var(--ink);
 }
 
+.sample-shots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.shot {
+  margin: 0;
+}
+
+.shot img,
+.shot-blank {
+  display: block;
+  width: 84px;
+  height: 84px;
+  border-radius: 6px;
+  background: var(--panel);
+  image-rendering: pixelated;
+}
+
+.shot figcaption {
+  padding-top: 3px;
+  color: var(--ink-faint);
+  font-family: var(--machine);
+  font-size: 10px;
+  text-align: center;
+}
+
+.shot figcaption b {
+  color: var(--ink-dim);
+}
+
+.sample-arrow {
+  color: var(--ink-faint);
+  font-size: 14px;
+  padding-bottom: 14px;
+}
+
 .sample-prompt {
-  font-size: 13px;
+  max-width: 190px;
+  font-size: 12.5px;
+  line-height: 1.35;
 }
 
 .sample-meta {
