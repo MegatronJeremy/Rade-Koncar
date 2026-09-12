@@ -424,6 +424,16 @@ body {
   line-height: 1.4;
 }
 
+/* Marks the line as something the scorer said, not a caption we wrote. */
+.critique-who {
+  color: var(--ink-dim);
+  font-family: var(--machine);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
 /* ---------- detail dialog ---------- */
 
 .detail {
@@ -707,4 +717,12 @@ body {
   .tile-working.is-scoring {
     animation: none;
   }
+}
+
+.legend {
+  margin: 10px 0 0;
+  max-width: 62ch;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.5;
 }

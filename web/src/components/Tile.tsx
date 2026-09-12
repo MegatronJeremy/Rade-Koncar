@@ -7,13 +7,30 @@ interface TileProps {
   readonly onSelect: (candidate: Candidate) => void;
 }
 
+/**
+ * A bare number means nothing to someone seeing this for the first time, so the
+ * denominator is always shown. `flat` is the pixel prefilter rejecting a
+ * candidate before any vision call: it reads as a bug next to a tile with
+ * visible texture unless it says why.
+ */
 const scoreLabel = (candidate: Candidate): string => {
   const { scores, status } = candidate;
   if (status === "compile_error") return "no build";
   if (status === "timeout") return "killed";
   if (scores === undefined) return "";
-  if (scores.flat) return "0 flat";
-  return `${scores.total}`;
+  if (scores.flat) return "0 / 30";
+  return `${scores.total} / 30`;
+};
+
+const scoreTitle = (candidate: Candidate): string => {
+  const { scores, status } = candidate;
+  if (status === "compile_error") return "The shader did not compile, so nothing was rendered.";
+  if (status === "timeout") return "The shader never finished a frame and its sandbox was killed.";
+  if (scores === undefined) return "";
+  if (scores.flat) {
+    return "Luminance barely varies across the image, so it scored 0 without a vision call.";
+  }
+  return `palette ${scores.palette} + motion ${scores.motion} + subject ${scores.subject}, out of 10 each`;
 };
 
 const FrameBody = ({
@@ -81,14 +98,26 @@ export const Tile = ({ candidate, frame, onSelect }: TileProps): React.JSX.Eleme
     <article className={classes}>
       <div className="tile-frame">
         <FrameBody candidate={candidate} frame={frame} />
-        {candidate.survived ? <span className="survivor-mark" aria-hidden="true" /> : null}
+        {candidate.survived ? (
+          <span className="survivor-mark" title="Scored in the top two, so it became a parent of the next round." />
+        ) : null}
       </div>
       <div className="tile-foot">
         <span className="tile-strategy">{candidate.strategy}</span>
-        <span className={`tile-score${failed ? " is-null" : ""}`}>{scoreLabel(candidate)}</span>
+        <span
+          className={`tile-score${failed ? " is-null" : ""}`}
+          title={scoreTitle(candidate)}
+        >
+          {scoreLabel(candidate)}
+        </span>
       </div>
       {candidate.critique !== undefined ? (
-        <p className="tile-critique">{candidate.critique}</p>
+        <p className="tile-critique">
+          <span className="critique-who">
+            {candidate.scores?.flat === true ? "prefilter" : "scorer"}
+          </span>
+          {candidate.critique}
+        </p>
       ) : null}
       <button type="button" className="tile-hit" onClick={() => onSelect(candidate)}>
         <span className="sr-only">

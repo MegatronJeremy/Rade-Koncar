@@ -66,6 +66,11 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
           runs in its own sandbox, gets screenshotted, and is scored on what it actually
           drew. The best two survive and breed. Three rounds.
         </p>
+        <p className="legend">
+          Each tile is one shader. It is scored out of 30 by a vision model looking at three
+          rendered frames: palette, motion and subject, 10 each. Anything that renders flat or
+          never moves is rejected on the pixels first, without a vision call.
+        </p>
       </header>
 
       <div className="run-bar">
@@ -101,12 +106,14 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
           heading={`Round ${shown.index}`}
           note={
             shown.index === control.index
-              ? "The same round, side by side"
+              ? "Waiting for the first round of feedback"
               : `After ${shown.index - 1} round${shown.index - 1 === 1 ? "" : "s"} of rendering, scoring and mutation${gain > 0 ? ` — best score up ${gain}` : ""}`
           }
           frame={frame}
           onSelect={setSelected}
-          generations={run.generations}
+          /* Round 1 is the baseline and is always on the left; offering it here
+             too invites comparing it against itself. */
+          generations={run.generations.slice(1)}
           onPick={setShownGenerationId}
         />
       </main>
