@@ -370,10 +370,10 @@ export async function rankGeneration(prompt: string, entries: RankEntry[]): Prom
  * generation 1's proves nothing either way. One direct comparison of the two
  * best does, and it is the claim the demo rests on.
  */
-export async function compareGenerations(
+async function compareOnce(
   prompt: string,
   first: string[],
-  last: string[],
+  second: string[],
 ): Promise<{ better: "first" | "second" | "neither"; reason: string }> {
   // Both new calls are claude-cli only for now. loop.ts catches this and falls
   // back to the weighted score, so an unimplemented provider costs calibration
@@ -385,7 +385,7 @@ export async function compareGenerations(
     "Judge only the description. Answer `neither` if they are genuinely equal.",
     "",
     "First:", ...first.map((p) => `  ${p}`), "",
-    "Second:", ...last.map((p) => `  ${p}`),
+    "Second:", ...second.map((p) => `  ${p}`),
   ].join("\n");
 
   return (await cli({
@@ -394,6 +394,32 @@ export async function compareGenerations(
     schema: VERDICT_SCHEMA,
     tools: ["Read"],
   })) as { better: "first" | "second" | "neither"; reason: string };
+}
+
+/**
+ * Asks twice, with the two shaders swapped, and only reports a winner when both
+ * answers name the same one.
+ *
+ * A single call is not stable enough to carry this claim. Run against the same
+ * two frames twice it named a different winner each time, and the swap is what
+ * separates a real preference from both run-to-run variance and a preference
+ * for whichever slot came first. Two calls per run, once, at the end.
+ */
+export async function compareGenerations(
+  prompt: string,
+  first: string[],
+  last: string[],
+): Promise<{ better: "first" | "second" | "neither"; reason: string }> {
+  const [ab, ba] = await Promise.all([
+    compareOnce(prompt, first, last),
+    compareOnce(prompt, last, first),
+  ]);
+  // Same winner seen from both directions, or no claim.
+  const firstWins = ab.better === "first" && ba.better === "second";
+  const lastWins = ab.better === "second" && ba.better === "first";
+  if (firstWins) return { better: "first", reason: ab.reason };
+  if (lastWins) return { better: "second", reason: ab.reason };
+  return { better: "neither", reason: `unstable across a swap: ${ab.better} then ${ba.better}. ${ab.reason}` };
 }
 
 export function assertProvider(): void {

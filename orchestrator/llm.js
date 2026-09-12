@@ -336,7 +336,7 @@ async function rankGeneration(prompt, entries) {
  * generation 1's proves nothing either way. One direct comparison of the two
  * best does, and it is the claim the demo rests on.
  */
-async function compareGenerations(prompt, first, last) {
+async function compareOnce(prompt, first, second) {
     // Both new calls are claude-cli only for now. loop.ts catches this and falls
     // back to the weighted score, so an unimplemented provider costs calibration
     // rather than the run.
@@ -348,7 +348,7 @@ async function compareGenerations(prompt, first, last) {
         "Judge only the description. Answer `neither` if they are genuinely equal.",
         "",
         "First:", ...first.map((p) => `  ${p}`), "",
-        "Second:", ...last.map((p) => `  ${p}`),
+        "Second:", ...second.map((p) => `  ${p}`),
     ].join("\n");
     return (await cli({
         system: read("rubric.md"),
@@ -356,6 +356,29 @@ async function compareGenerations(prompt, first, last) {
         schema: VERDICT_SCHEMA,
         tools: ["Read"],
     }));
+}
+/**
+ * Asks twice, with the two shaders swapped, and only reports a winner when both
+ * answers name the same one.
+ *
+ * A single call is not stable enough to carry this claim. Run against the same
+ * two frames twice it named a different winner each time, and the swap is what
+ * separates a real preference from both run-to-run variance and a preference
+ * for whichever slot came first. Two calls per run, once, at the end.
+ */
+async function compareGenerations(prompt, first, last) {
+    const [ab, ba] = await Promise.all([
+        compareOnce(prompt, first, last),
+        compareOnce(prompt, last, first),
+    ]);
+    // Same winner seen from both directions, or no claim.
+    const firstWins = ab.better === "first" && ba.better === "second";
+    const lastWins = ab.better === "second" && ba.better === "first";
+    if (firstWins)
+        return { better: "first", reason: ab.reason };
+    if (lastWins)
+        return { better: "second", reason: ab.reason };
+    return { better: "neither", reason: `unstable across a swap: ${ab.better} then ${ba.better}. ${ab.reason}` };
 }
 function assertProvider() {
     const p = provider();
