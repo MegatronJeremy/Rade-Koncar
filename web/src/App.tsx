@@ -18,6 +18,9 @@ const countWhere = (run: Run, match: (status: Candidate["status"]) => boolean): 
     0,
   );
 
+/** Six candidates a round, so six tiles are coming. Matches POP in the loop. */
+const POPULATION = 6;
+
 const bestTotal = (generation: Generation): number =>
   generation.candidates.reduce((best, c) => Math.max(best, c.scores?.total ?? 0), 0);
 
@@ -80,8 +83,20 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
     );
   }
 
+  /*
+   * One round means one column. There is nothing to compare against yet, and a
+   * second column repeating the same six tiles under another heading reads as a
+   * fault. It appears once a second round exists, and the round picker with it.
+   */
+  const comparable = run.generations.length >= 2;
   const failed = countWhere(run, (s) => s === "compile_error" || s === "timeout");
   const live = run.status === "running";
+  /*
+   * Placeholders only while this run is actually being worked on. A finished
+   * round that produced fewer than six, because a generation was rejected on
+   * its signature, is complete and should not show a gap waiting to fill.
+   */
+  const working = run.status === "running" || run.status === "queued";
   const gain = bestTotal(shown) - bestTotal(control);
 
   return (
@@ -110,7 +125,7 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
         is rejected on the pixels first, without a vision call.
       </p>
 
-      <main className="sheet">
+      <main className={`sheet${comparable ? "" : " is-single"}`}>
         <Column
           kind="control"
           generation={control}
@@ -118,23 +133,23 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
           note="What the model writes from the prompt alone, with no feedback"
           frame={frame}
           onSelect={setSelected}
+          expected={working && run.generations.length === 1 ? POPULATION : 0}
         />
-        <Column
-          kind="latest"
-          generation={shown}
-          heading={`Round ${shown.index}`}
-          note={
-            shown.index === control.index
-              ? "Waiting for the first round of feedback"
-              : `After ${shown.index - 1} round${shown.index - 1 === 1 ? "" : "s"} of rendering, scoring and mutation${gain > 0 ? `, best score up ${gain}` : ""}`
-          }
-          frame={frame}
-          onSelect={setSelected}
-          /* Round 1 is the baseline and is always on the left; offering it here
-             too invites comparing it against itself. */
-          generations={run.generations.slice(1)}
-          onPick={setShownGenerationId}
-        />
+        {comparable ? (
+          <Column
+            kind="latest"
+            generation={shown}
+            heading={`Round ${shown.index}`}
+            note={`After ${shown.index - 1} round${shown.index - 1 === 1 ? "" : "s"} of rendering, scoring and mutation${gain > 0 ? `, best score up ${gain}` : ""}`}
+            expected={working ? POPULATION : 0}
+            frame={frame}
+            onSelect={setSelected}
+            /* Round 1 is the baseline and is always on the left; offering it
+               here too invites comparing it against itself. */
+            generations={run.generations.slice(1)}
+            onPick={setShownGenerationId}
+          />
+        ) : null}
       </main>
 
       {selected !== undefined ? (

@@ -1256,3 +1256,56 @@ body {
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---------- placeholder tiles ----------
+
+   Shown only while a run is working. Writing six shaders takes up to ninety
+   seconds, and for that whole time there is nothing to attach a status to, so
+   an empty grid reads as broken rather than busy.
+*/
+
+.tile.is-pending {
+  border-color: var(--rule-soft);
+  pointer-events: none;
+}
+
+.tile-skeleton {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: linear-gradient(
+    100deg,
+    var(--well) 30%,
+    var(--raised) 50%,
+    var(--well) 70%
+  );
+  background-size: 260% 100%;
+}
+
+.skeleton-line {
+  display: block;
+  width: 58%;
+  height: 9px;
+  border-radius: 4px;
+  background: var(--well);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tile-skeleton {
+    animation: sweep 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes sweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* One round, one column: nothing to compare against yet. */
+.sheet.is-single {
+  grid-template-columns: 1fr;
+}
