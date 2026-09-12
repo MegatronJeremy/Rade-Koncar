@@ -32,7 +32,10 @@ export const Rail = ({ stage, onStage, sampleCount, running }: RailProps): React
   <div className="rail">
     <div className="rail-in">
       <div className="rail-id">
-        <h1 className="wordmark">Shader Arena</h1>
+        <div className="rail-name">
+          <img className="crest" src="/logo.png" alt="Rade Končar" width={22} height={33} />
+          <h1 className="wordmark">Shader Arena</h1>
+        </div>
         <p className="rail-thesis">
           A model writes six shaders, looks at what they drew, and rewrites the best two.
         </p>

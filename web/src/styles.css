@@ -852,6 +852,23 @@ body {
   min-width: 0;
 }
 
+.rail-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/*
+  The school crest keeps its own blue and red. It is an identity mark, not part
+  of the interface palette, and recolouring a crest to match a UI is worse than
+  letting it sit as itself at a size where it does not compete.
+*/
+.crest {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
 .rail .wordmark {
   margin: 0;
   font-size: 20px;
