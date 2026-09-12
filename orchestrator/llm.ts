@@ -35,6 +35,24 @@ const VISION_SCHEMA = {
   required: ["palette", "motion", "subject", "critique"], additionalProperties: false,
 };
 
+const RANKING_SCHEMA = {
+  type: "object",
+  properties: {
+    order: { type: "array", items: { type: "number" } },
+    reason: { type: "string" },
+  },
+  required: ["order", "reason"], additionalProperties: false,
+};
+
+const VERDICT_SCHEMA = {
+  type: "object",
+  properties: {
+    better: { type: "string", enum: ["first", "second", "neither"] },
+    reason: { type: "string" },
+  },
+  required: ["better", "reason"], additionalProperties: false,
+};
+
 /** The object `claude -p --output-format json` prints on stdout. */
 interface Envelope {
   is_error?: boolean;
@@ -305,6 +323,78 @@ async function xaiVision(prompt: string, framePaths: string[]): Promise<Vision> 
 }
 
 const provider = (): string => opt("LLM_PROVIDER", "claude-cli");
+
+export interface RankEntry {
+  label: number;
+  framePaths: string[];
+}
+
+/**
+ * One call that puts a whole generation in order, best first.
+ *
+ * Per-candidate scoring stays as it is, because the UI subscribes to each
+ * candidate's score as it lands and that is most of why the grid feels alive.
+ * This runs after those, and only decides who survives. Asking for an absolute
+ * 0 to 10 per candidate in isolation gives the model no anchor for what 7 rather
+ * than 8 means; asking it to order six it can see at once does.
+ *
+ * `order` holds labels, not positions. Callers must tolerate a short, long or
+ * duplicated list: the model is being asked for a permutation and nothing
+ * enforces that it returns one.
+ */
+export async function rankGeneration(prompt: string, entries: RankEntry[]): Promise<{ order: number[]; reason: string }> {
+  // Both new calls are claude-cli only for now. loop.ts catches this and falls
+  // back to the weighted score, so an unimplemented provider costs calibration
+  // rather than the run.
+  if (provider() !== "claude-cli") throw new Error(`rank/compare not implemented for LLM_PROVIDER=${provider()}`);
+  const body = [
+    `Description: ${prompt}`, "",
+    "Rank these candidates best first against the description.",
+    "Return `order` as candidate numbers, best first, every candidate exactly once.",
+    "",
+    ...entries.flatMap((e) => [`Candidate ${e.label}, frames at t = 0, 1, 2:`, ...e.framePaths.map((p) => `  ${p}`), ""]),
+  ].join("\n");
+
+  return (await cli({
+    system: read("rubric.md"),
+    prompt: body,
+    schema: RANKING_SCHEMA,
+    tools: ["Read"],
+  })) as { order: number[]; reason: string };
+}
+
+/**
+ * Did three generations actually improve anything?
+ *
+ * Absolute scores drift between generations, so a generation 3 total below
+ * generation 1's proves nothing either way. One direct comparison of the two
+ * best does, and it is the claim the demo rests on.
+ */
+export async function compareGenerations(
+  prompt: string,
+  first: string[],
+  last: string[],
+): Promise<{ better: "first" | "second" | "neither"; reason: string }> {
+  // Both new calls are claude-cli only for now. loop.ts catches this and falls
+  // back to the weighted score, so an unimplemented provider costs calibration
+  // rather than the run.
+  if (provider() !== "claude-cli") throw new Error(`rank/compare not implemented for LLM_PROVIDER=${provider()}`);
+  const body = [
+    `Description: ${prompt}`, "",
+    "Two shaders, each as three frames. Which matches the description better?",
+    "Judge only the description. Answer `neither` if they are genuinely equal.",
+    "",
+    "First:", ...first.map((p) => `  ${p}`), "",
+    "Second:", ...last.map((p) => `  ${p}`),
+  ].join("\n");
+
+  return (await cli({
+    system: read("rubric.md"),
+    prompt: body,
+    schema: VERDICT_SCHEMA,
+    tools: ["Read"],
+  })) as { better: "first" | "second" | "neither"; reason: string };
+}
 
 export function assertProvider(): void {
   const p = provider();

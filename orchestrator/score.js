@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.weightedTotal = void 0;
+exports.rankingScore = void 0;
 exports.stddev = stddev;
 exports.motion = motion;
+exports.writeFrames = writeFrames;
 exports.scoreCandidate = scoreCandidate;
 const node_fs_1 = require("node:fs");
 const node_os_1 = require("node:os");
@@ -13,18 +14,19 @@ const llm_1 = require("./llm");
 const FLAT_STDDEV = 0.02;
 const MOTION_MIN = 0.01;
 /**
- * Subject carries double weight, palette and motion three quarters each, so the
- * total still tops out at 30 and the UI's `/ 30` stays true.
+ * Ordering used only when the ranking call in `loop.ts` is unavailable.
  *
- * An equal sum lets palette and motion outvote subject, and subject is where
- * candidates actually fail: across the 48 in experiments/003 the breakdown was
- * 24 unrecognisable, 9 static, 2 blank. Equal weighting scores a beautiful
- * nebula 10/10/0 = 20 above a scruffy but correct wool texture at 5/5/9 = 19,
- * which is the exact inversion `rubric.md` tells the model to avoid.
+ * Subject carries double weight because it is where candidates actually fail:
+ * across the 48 in experiments/003, 24 were unrecognisable against 9 static and
+ * 2 blank. An equal sum inverts `rubric.md`'s own instruction, scoring a
+ * beautiful nebula 10/10/0 = 20 above a scruffy but correct wool texture at
+ * 5/5/9 = 19.
+ *
+ * This is deliberately not `scores.total`. The number on screen is the plain
+ * sum, so that the three components a viewer can see actually add up to it.
  */
-const WEIGHT = { palette: 0.75, motion: 0.75, subject: 1.5 };
-const weightedTotal = (palette, motionScore, subject) => Math.round(WEIGHT.palette * palette + WEIGHT.motion * motionScore + WEIGHT.subject * subject);
-exports.weightedTotal = weightedTotal;
+const rankingScore = (palette, motionScore, subject) => 0.75 * palette + 0.75 * motionScore + 1.5 * subject;
+exports.rankingScore = rankingScore;
 const luminance = (p) => {
     const v = new Float64Array(p.width * p.height);
     for (let i = 0, j = 0; i < p.data.length; i += 4, j++) {
@@ -65,6 +67,15 @@ const meanAbsDiff = (x, y) => {
 function motion(t0, t1, t2) {
     return Math.max(meanAbsDiff(t0, t1), meanAbsDiff(t1, t2), meanAbsDiff(t0, t2));
 }
+/** Frames on disk, because the model reaches them through the Read tool. */
+function writeFrames(png) {
+    const dir = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "shader-"));
+    return png.map((buf, i) => {
+        const p = (0, node_path_1.join)(dir, `t${i}.png`);
+        (0, node_fs_1.writeFileSync)(p, buf);
+        return p;
+    });
+}
 /**
  * Prefilter first, vision only on what survives it. The two questions a vision
  * model answers worst, is it blank and does it move, are exactly the two pixel
@@ -75,19 +86,14 @@ function motion(t0, t1, t2) {
 async function scoreCandidate(prompt, r) {
     const [t0, t1, t2] = r.png;
     if (t0 === undefined || t1 === undefined || t2 === undefined) {
-        return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "no frames" };
+        return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "no frames", framePaths: [] };
     }
     const sd = stddev(t1);
     const md = motion(t0, t1, t2);
     if (sd < FLAT_STDDEV) {
-        return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "renders flat" };
+        return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "renders flat", framePaths: [] };
     }
-    const dir = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "shader-"));
-    const paths = r.png.map((buf, i) => {
-        const p = (0, node_path_1.join)(dir, `t${i}.png`);
-        (0, node_fs_1.writeFileSync)(p, buf);
-        return p;
-    });
+    const paths = writeFrames(r.png);
     const v = await (0, llm_1.scoreFrames)(prompt, paths);
     const motionScore = md < MOTION_MIN ? 0 : v.motion;
     return {
@@ -96,8 +102,11 @@ async function scoreCandidate(prompt, r) {
             motion: motionScore,
             palette: v.palette,
             subject: v.subject,
-            total: (0, exports.weightedTotal)(v.palette, motionScore, v.subject),
+            // The plain sum, so the three numbers shown beside it add up to it.
+            // Priority between candidates is the ranking call's job, not this number's.
+            total: v.palette + motionScore + v.subject,
         },
         critique: v.critique,
+        framePaths: paths,
     };
 }

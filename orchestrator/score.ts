@@ -10,19 +10,19 @@ const FLAT_STDDEV = 0.02;
 const MOTION_MIN = 0.01;
 
 /**
- * Subject carries double weight, palette and motion three quarters each, so the
- * total still tops out at 30 and the UI's `/ 30` stays true.
+ * Ordering used only when the ranking call in `loop.ts` is unavailable.
  *
- * An equal sum lets palette and motion outvote subject, and subject is where
- * candidates actually fail: across the 48 in experiments/003 the breakdown was
- * 24 unrecognisable, 9 static, 2 blank. Equal weighting scores a beautiful
- * nebula 10/10/0 = 20 above a scruffy but correct wool texture at 5/5/9 = 19,
- * which is the exact inversion `rubric.md` tells the model to avoid.
+ * Subject carries double weight because it is where candidates actually fail:
+ * across the 48 in experiments/003, 24 were unrecognisable against 9 static and
+ * 2 blank. An equal sum inverts `rubric.md`'s own instruction, scoring a
+ * beautiful nebula 10/10/0 = 20 above a scruffy but correct wool texture at
+ * 5/5/9 = 19.
+ *
+ * This is deliberately not `scores.total`. The number on screen is the plain
+ * sum, so that the three components a viewer can see actually add up to it.
  */
-const WEIGHT = { palette: 0.75, motion: 0.75, subject: 1.5 } as const;
-
-export const weightedTotal = (palette: number, motionScore: number, subject: number): number =>
-  Math.round(WEIGHT.palette * palette + WEIGHT.motion * motionScore + WEIGHT.subject * subject);
+export const rankingScore = (palette: number, motionScore: number, subject: number): number =>
+  0.75 * palette + 0.75 * motionScore + 1.5 * subject;
 
 const luminance = (p: PNG): Float64Array => {
   const v = new Float64Array(p.width * p.height);
@@ -69,6 +69,18 @@ export function motion(t0: Buffer, t1: Buffer, t2: Buffer): number {
 export interface Scored {
   scores: Scores;
   critique: string;
+  /** Written so the ranking and comparison calls can Read the same frames. */
+  framePaths: string[];
+}
+
+/** Frames on disk, because the model reaches them through the Read tool. */
+export function writeFrames(png: readonly Buffer[]): string[] {
+  const dir = mkdtempSync(join(tmpdir(), "shader-"));
+  return png.map((buf, i) => {
+    const p = join(dir, `t${i}.png`);
+    writeFileSync(p, buf);
+    return p;
+  });
 }
 
 /**
@@ -81,21 +93,16 @@ export interface Scored {
 export async function scoreCandidate(prompt: string, r: Rendered): Promise<Scored> {
   const [t0, t1, t2] = r.png;
   if (t0 === undefined || t1 === undefined || t2 === undefined) {
-    return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "no frames" };
+    return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "no frames", framePaths: [] };
   }
 
   const sd = stddev(t1);
   const md = motion(t0, t1, t2);
   if (sd < FLAT_STDDEV) {
-    return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "renders flat" };
+    return { scores: { flat: true, motion: 0, palette: 0, subject: 0, total: 0 }, critique: "renders flat", framePaths: [] };
   }
 
-  const dir = mkdtempSync(join(tmpdir(), "shader-"));
-  const paths = r.png.map((buf, i) => {
-    const p = join(dir, `t${i}.png`);
-    writeFileSync(p, buf);
-    return p;
-  });
+  const paths = writeFrames(r.png);
 
   const v = await scoreFrames(prompt, paths);
   const motionScore = md < MOTION_MIN ? 0 : v.motion;
@@ -105,8 +112,11 @@ export async function scoreCandidate(prompt: string, r: Rendered): Promise<Score
       motion: motionScore,
       palette: v.palette,
       subject: v.subject,
-      total: weightedTotal(v.palette, motionScore, v.subject),
+      // The plain sum, so the three numbers shown beside it add up to it.
+      // Priority between candidates is the ranking call's job, not this number's.
+      total: v.palette + motionScore + v.subject,
     },
     critique: v.critique,
+    framePaths: paths,
   };
 }

@@ -61,18 +61,40 @@ That difference is the **largest of t0/t1, t1/t2 and t0/t2**, not t0 against t2 
 
 This split is deliberate: is it blank and does it move are the two questions pixel maths answers with certainty and a vision model answers unreliably. The model is left with palette and subject, which it is good at.
 
-## How the three become a total
+## The total is the plain sum, and it does not choose survivors
 
-Not an equal sum. `score.ts` computes:
+`total = palette + motion + subject`, out of 30. It is displayed next to those three numbers, so it has to be the number they add up to. It is descriptive.
+
+Selection is a separate question, answered by the ranking call below, because an absolute total is the wrong instrument for it. Subject is where candidates actually fail: of the 48 one-shot candidates in `experiments/003`, 24 were unrecognisable against 9 static and 2 blank. Yet an equal sum lets palette and motion outvote subject, which inverts this file's own instruction that a gorgeous nebula scores 0 when the prompt said knitted wool. Equal weighting gives that nebula 10 + 10 + 0 = 20 and a scruffy but correct wool texture 5 + 5 + 9 = 19, and the nebula becomes a parent.
+
+When the ranking call is unavailable, `score.ts` falls back to ordering by `0.75 * palette + 0.75 * motion + 1.5 * subject`, which puts that pair at 15 against 21. That weighting is never shown, precisely because it would not add up on screen.
+
+## Ranking a generation
+
+One call per generation, after every candidate has its own score. Same system prompt, different question.
+
+The per-candidate call stays because the UI subscribes to each score as it lands, and tiles changing while the user watches is most of why the grid feels alive. Batching the six into one call would leave the grid inert until all six finished.
+
+What the ranking call adds is calibration. Scoring a candidate alone gives the model no anchor for what 7 rather than 8 means; ordering six it can see at once does, and ordering is all survivor selection needs.
 
 ```
-total = round(0.75 * palette + 0.75 * motion + 1.5 * subject)
+Rank these candidates best first against the description.
+Return `order` as candidate numbers, best first, every candidate exactly once.
 ```
 
-Still out of 30. Subject carries double the weight of either other axis.
+Returns `{ order: number[], reason: string }`. `order` carries candidate numbers, not positions.
 
-An equal sum lets palette and motion outvote subject, which inverts this file's own instruction that a gorgeous nebula scores 0 when the prompt said knitted wool. Equal weighting gives that nebula 10 + 10 + 0 = 20 and a scruffy but correct wool texture 5 + 5 + 9 = 19, so the nebula becomes a parent. Weighted, it is 15 against 21.
+The answer is advisory. Nothing forces the model to return a permutation, so `loop.ts` rejects any order that is not one and falls back to the weighted score. A malformed model reply must never fail a run.
 
-Subject is also where candidates actually fail. Of the 48 one-shot candidates in `experiments/003`, 24 were unrecognisable, 9 did not move and 2 were blank.
+## Comparing the first generation with the last
 
-The model is not told the weights. It scores each axis on its own terms and the arithmetic happens afterwards.
+One call at the end of a run, on the two best.
+
+Absolute scores drift between generations, so a generation 3 total below generation 1's settles nothing. The product's whole claim is that three rounds improve on one, and this is the only measurement that speaks to it directly.
+
+```
+Two shaders, each as three frames. Which matches the description better?
+Judge only the description. Answer `neither` if they are genuinely equal.
+```
+
+Returns `{ better: "first" | "second" | "neither", reason: string }`, where first is generation 1. Logged by the orchestrator as `IMPROVED`, `REGRESSED` or `NO CHANGE`.
