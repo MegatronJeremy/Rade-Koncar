@@ -86,7 +86,7 @@ export const YourRuns = ({
                   disabled={blocked}
                   title={blocked ? "Another run is using the sandboxes" : "Run one more round"}
                 >
-                  Another round
+                  Next iteration
                 </button>
               ) : null}
             </li>

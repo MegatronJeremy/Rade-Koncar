@@ -57,6 +57,25 @@ export const App = ({ run }: AppProps): React.JSX.Element => {
             ? "Writing six shaders. The first tiles appear in about two minutes, then each renders in its own sandbox."
             : "This run produced nothing."}
         </p>
+        {/*
+          Six placeholders, because six tiles are coming. Words alone leave the
+          page looking like it has finished and produced nothing; the shapes say
+          how much is on its way and where it will land.
+        */}
+        {working ? (
+          <div className="grid starting-grid">
+            {Array.from({ length: POPULATION }, (_, i) => (
+              <article key={`pending-${i}`} className="tile is-pending" aria-hidden="true">
+                <div className="tile-frame">
+                  <div className="tile-skeleton" />
+                </div>
+                <div className="tile-foot">
+                  <span className="skeleton-line" />
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </main>
     );
   }

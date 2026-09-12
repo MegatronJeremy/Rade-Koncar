@@ -1111,7 +1111,11 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  padding: 40px var(--pad) 60px;
+  /* Same measure and gutters as the sheet, so the placeholders below land
+     exactly where the real tiles will. */
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 40px var(--edge) 60px;
 }
 
 .starting-prompt {
@@ -1308,4 +1312,11 @@ body {
 /* One round, one column: nothing to compare against yet. */
 .sheet.is-single {
   grid-template-columns: 1fr;
+}
+
+/* The container already carries the measure and gutters; the grid only needs
+   to fill it, since .starting aligns its children to the start. */
+.starting-grid {
+  width: 100%;
+  margin-top: 16px;
 }
