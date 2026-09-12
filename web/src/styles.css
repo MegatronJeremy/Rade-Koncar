@@ -1003,29 +1003,47 @@ body {
   gap: 16px;
 }
 
-.sample {
+/* The card is a container so an action can sit outside the clickable area. */
+.runcard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule-soft);
+  border-radius: 12px;
+  background: var(--bench);
+  overflow: hidden;
+}
+
+.runcard:hover {
+  border-color: var(--rule);
+}
+
+.runcard.is-active {
+  border-color: var(--mark);
+}
+
+.runcard-hit {
   display: flex;
   flex-direction: column;
   gap: 12px;
   align-items: stretch;
   padding: 14px;
-  border: 1px solid var(--rule-soft);
-  border-radius: 12px;
-  background: var(--bench);
+  border: 0;
+  background: transparent;
   color: var(--ink-dim);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.sample:hover {
-  border-color: var(--rule);
+.runcard:hover .runcard-hit,
+.runcard.is-active .runcard-hit {
   color: var(--ink);
 }
 
-.sample.is-active {
-  border-color: var(--mark);
-  color: var(--ink);
+.runcard-action {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 14px;
 }
 
 .sample-shots {
@@ -1220,17 +1238,6 @@ body {
 
 .yours-when {
   font-variant-numeric: tabular-nums;
-}
-
-.yours-item {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.yours-item .yours-row {
-  flex: 1;
-  min-width: 0;
 }
 
 .yours-act {

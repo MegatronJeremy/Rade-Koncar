@@ -1,4 +1,5 @@
 import type { Run } from "../types";
+import { RunCard } from "./RunCard";
 
 interface YourRunsProps {
   readonly runs: readonly Run[];
@@ -6,15 +7,9 @@ interface YourRunsProps {
   readonly onPick: (runId: string) => void;
   readonly onContinue: (runId: string) => void;
   readonly onStop: (runId: string) => void;
-  /** Another run holds the sandboxes, so neither action can start now. */
+  /** Another run holds the sandboxes, so nothing new can start now. */
   readonly blocked: boolean;
 }
-
-const bestOf = (run: Run, index: number): number =>
-  (run.generations[index]?.candidates ?? []).reduce(
-    (best, c) => Math.max(best, c.scores?.total ?? 0),
-    0,
-  );
 
 const when = (ms: number): string => {
   const mins = Math.round((Date.now() - ms) / 60000);
@@ -24,9 +19,16 @@ const when = (ms: number): string => {
   return hrs < 24 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
 };
 
+const bestOf = (run: Run, index: number): number =>
+  (run.generations[index]?.candidates ?? []).reduce(
+    (best, c) => Math.max(best, c.scores?.total ?? 0),
+    0,
+  );
+
 /**
- * The visitor's own runs, kept in this browser. Nobody else's appear here and
- * theirs never appear anywhere else: a run belongs to whoever asked for it.
+ * The visitor's own runs, as the same cards the samples use. A list of prompts
+ * told you what you had asked for; the cards show what came back, which is the
+ * thing worth looking at.
  */
 export const YourRuns = ({
   runs,
@@ -41,21 +43,18 @@ export const YourRuns = ({
   return (
     <section className="yours" aria-label="Your runs">
       <h2 className="yours-head">Your runs</h2>
-      <ul className="yours-list">
+      <div className="samplebar-row">
         {runs.map((run) => {
-          const last = run.generations.length - 1;
-          const gain = bestOf(run, last) - bestOf(run, 0);
           const working = run.status === "queued" || run.status === "running";
+          const gain = bestOf(run, run.generations.length - 1) - bestOf(run, 0);
           return (
-            <li key={run.id} className="yours-item">
-              <button
-                type="button"
-                className={`yours-row${run.id === selectedId ? " is-active" : ""}`}
-                onClick={() => onPick(run.id)}
-                aria-pressed={run.id === selectedId}
-              >
-                <span className="yours-prompt">{run.prompt}</span>
-                <span className="yours-meta">
+            <RunCard
+              key={run.id}
+              run={run}
+              active={run.id === selectedId}
+              onPick={onPick}
+              footer={
+                <>
                   {working ? (
                     <span className="yours-live">
                       <i className="pip" aria-hidden="true" />
@@ -72,27 +71,29 @@ export const YourRuns = ({
                     </>
                   )}
                   <span className="yours-when">{when(run.createdAt)}</span>
-                </span>
-              </button>
-              {working ? (
-                <button type="button" className="yours-act" onClick={() => onStop(run.id)}>
-                  Stop
-                </button>
-              ) : run.status === "done" ? (
-                <button
-                  type="button"
-                  className="yours-act is-go"
-                  onClick={() => onContinue(run.id)}
-                  disabled={blocked}
-                  title={blocked ? "Another run is using the sandboxes" : "Run one more round"}
-                >
-                  Next iteration
-                </button>
-              ) : null}
-            </li>
+                </>
+              }
+              action={
+                working ? (
+                  <button type="button" className="yours-act" onClick={() => onStop(run.id)}>
+                    Stop
+                  </button>
+                ) : run.status === "done" ? (
+                  <button
+                    type="button"
+                    className="yours-act is-go"
+                    onClick={() => onContinue(run.id)}
+                    disabled={blocked}
+                    title={blocked ? "Another run is using the sandboxes" : "Run one more round"}
+                  >
+                    Next iteration
+                  </button>
+                ) : null
+              }
+            />
           );
         })}
-      </ul>
+      </div>
     </section>
   );
 };
