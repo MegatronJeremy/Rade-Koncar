@@ -1,0 +1,6 @@
+* text=auto
+
+# Uploaded verbatim to a Linux builder or read by a GLSL compiler there.
+Dockerfile text eol=lf
+*.glsl text eol=lf
+*.sh text eol=lf

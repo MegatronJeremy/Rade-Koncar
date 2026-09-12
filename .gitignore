@@ -13,6 +13,10 @@ build/
 # Committed frames live in harness/fixtures/ and are not covered by this.
 out/
 
+# tsc output. The Dockerfile builds these.
+harness/render.js
+harness/snapshot.js
+
 # Playwright.
 playwright-report/
 test-results/

@@ -1,0 +1,19 @@
+{
+  "name": "shader-arena-harness",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Renders a GLSL mainImage to three PNGs. See docs/01-contracts.md section 1.",
+  "scripts": {
+    "build": "tsc",
+    "render": "node render.js",
+    "snapshot": "node snapshot.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@daytonaio/sdk": "0.211.2",
+    "playwright": "1.63.0"
+  }
+}
