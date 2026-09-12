@@ -1,0 +1,21 @@
+{
+  "name": "shader-arena-orchestrator",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Prompt in, three generations of six shaders out. See docs/03-orchestrator-pavle.md.",
+  "scripts": {
+    "build": "tsc",
+    "run-once": "node cli.js",
+    "serve": "node server.js"
+  },
+  "dependencies": {
+    "@daytonaio/sdk": "0.211.2",
+    "@types/pngjs": "^6.0.5",
+    "convex": "^1.17.0",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

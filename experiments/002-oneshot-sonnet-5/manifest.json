@@ -1,0 +1,19 @@
+{
+  "id": "002-oneshot-sonnet-5",
+  "model": "claude-sonnet-5",
+  "git": "e46ec86",
+  "runs": {
+    "clock": {
+      "prompt": "an analog clock with a sweeping second hand",
+      "at": "2026-09-12T11:32:27Z",
+      "costUSD": 0.4714724,
+      "genSeconds": 271
+    },
+    "snow": {
+      "prompt": "snow falling and settling into a pile at the bottom",
+      "at": "2026-09-12T11:36:29Z",
+      "costUSD": 0.2966324,
+      "genSeconds": 233
+    }
+  }
+}
