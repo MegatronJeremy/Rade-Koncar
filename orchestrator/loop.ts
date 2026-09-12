@@ -250,6 +250,17 @@ export async function runOnce(
       if (stored === null) throw new Error(`run ${runId} not found`);
       startGen = stored.generations.length + 1;
 
+      /*
+       * POST /continue carries a runId and no prompt, so without this the round
+       * is generated, scored and ranked against an empty subject: the critiques
+       * come back "no description given, cannot match subject" and every
+       * candidate loses the whole subject axis, which is 10 of 30. The stored
+       * prompt is authoritative anyway. A resumed round must be judged against
+       * the same subject as the round it is descended from, or the scores across
+       * generations are not comparable and survivor selection is arbitrary.
+       */
+      prompt = stored.prompt;
+
       const asLive = (c: store.StoredCandidate): Live => ({
         candidate: { strategy: c.strategy, source: c.source },
         index: c.index,
