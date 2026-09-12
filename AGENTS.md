@@ -146,6 +146,34 @@ Each of these fails as something other than what it is, which is why they are wr
   be weighted.
 - Assume deep fundamentals in the reader: terse and correct beats verbose and hedged.
 
+## Documentation
+
+The markdown in this repo is a closed set. Do not add to it.
+
+| File | Owner | Purpose |
+|---|---|---|
+| `README.md` (root) | Djordje | Public: problem, what it does, stack, run steps. A submission requirement, judged, and not the place for contributor workflow |
+| `AGENTS.md`, `CLAUDE.md` | shared | This guidance |
+| `docs/*.md` | per the table above | The plan, the contracts, the schedule |
+| `harness/README.md` | Vuk | Snapshot name and the exact command line, which is how Pavle knows to swap out his stub |
+| `prompts/codegen.md`, `prompts/rubric.md` | Vuk | Model instructions |
+| `prompts/mutation.md`, `prompts/demo-candidates.md`, `prompts/thesis-test.md` | Pavle | Model instructions, the eight prompt candidates, and the one-shot counts |
+| `.env.example` | shared | Every variable, no values |
+
+No `PROGRESS.md`, no `NOTES.md`, no `SUMMARY.md`, no plan or handoff files. A new markdown file is
+almost always status wearing a filename, and status in git rots and then costs a churn commit to
+correct.
+
+Doc ownership mirrors folder ownership: edit your own owner doc, propose changes to anyone else's
+rather than making them. [`docs/01-contracts.md`](docs/01-contracts.md) is frozen as a file, not
+only as a set of shapes.
+
+**Write a fact down the moment you learn it, in the doc that needs it.** Three sessions run in
+parallel and cannot see each other's terminals. The snapshot name, the Daytona concurrency limit,
+the model id that actually accepts image input, a threshold tuned against fixtures: each is inert in
+your scrollback and load-bearing in a file. The alternative to a two-line doc edit is someone else
+rediscovering the same thing at 16:00.
+
 ## Writing: comments, docs, commits
 
 - **Maximal information, minimal text.** Cut every word that adds none. Keep the quantitative (names,
