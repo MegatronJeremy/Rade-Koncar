@@ -146,9 +146,14 @@ async function reportImprovement(prompt: string, first?: Live, last?: Live): Pro
 }
 
 /** One prompt, three generations, six candidates each. */
-export async function runOnce(prompt: string): Promise<store.RunId> {
+export async function runOnce(
+  prompt: string,
+  /** Called as soon as the run exists, so a caller can answer with its id. */
+  onCreated?: (runId: string) => void,
+): Promise<store.RunId> {
   const out = sink();
   const runId = await out.createRun(prompt);
+  onCreated?.(runId);
   const render = await renderer();
 
   /*

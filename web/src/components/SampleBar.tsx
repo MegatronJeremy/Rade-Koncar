@@ -6,6 +6,8 @@ interface SampleBarProps {
   readonly onPick: (runId: string) => void;
   /** A run happening now owns the view; the bar says so rather than lying. */
   readonly liveRunning: boolean;
+  readonly showingLive: boolean;
+  readonly onFollowLive?: (() => void) | undefined;
 }
 
 const winnerOf = (run: Run, index: number): Candidate | undefined => {
@@ -50,6 +52,8 @@ export const SampleBar = ({
   selectedId,
   onPick,
   liveRunning,
+  showingLive,
+  onFollowLive,
 }: SampleBarProps): React.JSX.Element | null => {
   if (samples.length === 0) return null;
 
@@ -58,6 +62,14 @@ export const SampleBar = ({
       <p className="samplebar-lede">
         <strong>Samples.</strong> Finished runs. Each shows the best shader of round one beside
         the best of the last round. Open one, or send your own prompt.
+        {liveRunning && !showingLive && onFollowLive !== undefined ? (
+          <>
+            {" "}
+            <button type="button" className="linkish" onClick={onFollowLive}>
+              Back to the run in progress
+            </button>
+          </>
+        ) : null}
       </p>
       <div className="samplebar-row">
         {samples.map((run) => {

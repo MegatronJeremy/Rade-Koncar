@@ -128,9 +128,12 @@ async function reportImprovement(prompt, first, last) {
     }
 }
 /** One prompt, three generations, six candidates each. */
-async function runOnce(prompt) {
+async function runOnce(prompt, 
+/** Called as soon as the run exists, so a caller can answer with its id. */
+onCreated) {
     const out = (0, sink_1.sink)();
     const runId = await out.createRun(prompt);
+    onCreated?.(runId);
     const render = await (0, sink_1.renderer)();
     /*
      * Cleanup lives in a finally, and a signal skips it. Killing a run therefore

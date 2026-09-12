@@ -5,7 +5,7 @@ interface PromptBoxProps {
   readonly state: OrchestratorState;
   /** What the orchestrator is already working on. One run at a time, service wide. */
   readonly running: string | undefined;
-  readonly submit: (prompt: string) => Promise<void>;
+  readonly submit: (prompt: string) => Promise<string | undefined>;
 }
 
 /**
@@ -68,7 +68,7 @@ export const PromptBox = ({ state, running, submit }: PromptBoxProps): React.JSX
         {sending ? "Starting" : "Run"}
       </button>
       {state === "probing" ? (
-        <span className="prompt-note">Checking whether runs are available</span>
+        <span className="prompt-note">Starting up, this can take a minute</span>
       ) : error !== undefined ? (
         <span className="prompt-note is-error">{error}</span>
       ) : busy !== undefined ? (

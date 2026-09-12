@@ -2,13 +2,27 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * `absent`  no VITE_ORCHESTRATOR_URL in this build
- * `probing` health check in flight
+ * `probing` health check in flight, or waiting to try again
  * `up`      /health answered, prompts can be submitted
- * `down`    configured but unreachable
+ * `down`    configured, and still unreachable after every attempt
  */
 export type OrchestratorState = "absent" | "probing" | "up" | "down";
 
 const HEALTH_TIMEOUT_MS = 4000;
+
+/**
+ * A host that has been idle takes far longer than one timeout to answer, and the
+ * request itself is what wakes it. Probing once meant a visitor arriving after a
+ * quiet spell got a single four-second attempt against a waking service, and
+ * then a dead prompt box until they thought to reload, on a product whose whole
+ * point is the prompt box.
+ *
+ * So keep asking. The first few attempts are close together for the ordinary
+ * case of a brief hiccup, then it settles into a slow poll that costs nothing
+ * and repairs itself whenever the service comes back.
+ */
+const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000];
+const SETTLED_MS = 15000;
 
 /**
  * One run at a time service-wide: Daytona allows 10 GiB and six sandboxes at
@@ -41,7 +55,7 @@ export const useOrchestrator = (): {
   readonly state: OrchestratorState;
   /** The prompt already running service-wide, if any. Only one run at a time. */
   readonly running: string | undefined;
-  readonly submit: (prompt: string) => Promise<void>;
+  readonly submit: (prompt: string) => Promise<string | undefined>;
 } => {
   const base = configured();
   const [state, setState] = useState<OrchestratorState>(
@@ -51,34 +65,56 @@ export const useOrchestrator = (): {
 
   useEffect(() => {
     if (base === undefined) return;
-    const abort = new AbortController();
-    const timer = window.setTimeout(() => abort.abort(), HEALTH_TIMEOUT_MS);
     let cancelled = false;
+    let timer: number | undefined;
+    let attempt = 0;
 
-    const started = Date.now();
-    fetch(`${base}/health`, { signal: abort.signal })
-      .then(async (res) => {
-        console.info(`[orchestrator] /health ${res.status} in ${Date.now() - started}ms`);
-        if (cancelled) return;
-        setState(res.ok ? "up" : "down");
-        const body = (await res.json().catch(() => ({}))) as { running?: string | null };
-        if (!cancelled) setRunning(body.running ?? undefined);
-      })
-      .catch(() => {
-        console.info(`[orchestrator] /health unreachable after ${Date.now() - started}ms`);
-        if (!cancelled) setState("down");
-      })
-      .finally(() => window.clearTimeout(timer));
+    const probe = (): void => {
+      const abort = new AbortController();
+      const bail = window.setTimeout(() => abort.abort(), HEALTH_TIMEOUT_MS);
+      const started = Date.now();
+
+      fetch(`${base}/health`, { signal: abort.signal })
+        .then((res) => {
+          console.info(`[orchestrator] /health ${res.status} in ${Date.now() - started}ms`);
+          if (cancelled) return;
+          if (res.ok) {
+            setState("up");
+            return;
+          }
+          retry();
+        })
+        .catch(() => {
+          console.info(`[orchestrator] /health unreachable after ${Date.now() - started}ms`);
+          if (!cancelled) retry();
+        })
+        .finally(() => window.clearTimeout(bail));
+    };
+
+    const retry = (): void => {
+      const wait = BACKOFF_MS[attempt] ?? SETTLED_MS;
+      // `down` only once the quick attempts are spent, so a brief hiccup never
+      // shows the visitor a dead control.
+      setState(attempt >= BACKOFF_MS.length ? "down" : "probing");
+      attempt += 1;
+      timer = window.setTimeout(probe, wait);
+    };
+
+    probe();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
-      abort.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [base]);
 
+  /**
+   * Resolves with the run's id so the page can follow its own run and no other.
+   * Without it every visitor saw whichever run was newest, and one person's
+   * prompt took over everyone's screen.
+   */
   const submit = useCallback(
-    async (prompt: string): Promise<void> => {
+    async (prompt: string): Promise<string | undefined> => {
       if (base === undefined) throw new Error("No orchestrator configured");
       const started = Date.now();
       const res = await fetch(`${base}/run`, {
@@ -92,6 +128,7 @@ export const useOrchestrator = (): {
         error?: string;
         busy?: boolean;
         running?: string;
+        runId?: string | null;
       };
 
       if (res.status === 429 || detail.busy === true) {
@@ -100,6 +137,7 @@ export const useOrchestrator = (): {
       }
       if (!res.ok) throw new Error(detail.error ?? `Orchestrator returned ${res.status}`);
       setRunning(prompt);
+      return detail.runId ?? undefined;
     },
     [base],
   );

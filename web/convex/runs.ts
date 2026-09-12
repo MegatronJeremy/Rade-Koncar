@@ -143,6 +143,27 @@ export const sampleRuns = query({
   },
 });
 
+/**
+ * Hydrate a set of runs by id, for a visitor's own history.
+ *
+ * Takes strings rather than v.id so one stale or malformed id from a browser
+ * that has been open across a redeploy cannot fail the whole query;
+ * normalizeId returns null and that entry is simply dropped.
+ */
+export const runsByIds = query({
+  args: { ids: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const runs = [];
+    for (const raw of args.ids) {
+      const id = ctx.db.normalizeId("runs", raw);
+      if (id === null) continue;
+      const run = await ctx.db.get(id);
+      if (run !== null) runs.push(await hydrateRun(ctx, run));
+    }
+    return runs;
+  },
+});
+
 export const runWithCandidates = query({
   args: { runId: v.id("runs") },
   handler: async (ctx, args) => {

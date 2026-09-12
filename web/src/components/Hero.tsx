@@ -4,7 +4,7 @@ import { PromptBox } from "./PromptBox";
 interface HeroProps {
   readonly state: OrchestratorState;
   readonly running: string | undefined;
-  readonly submit: (prompt: string) => Promise<void>;
+  readonly submit: (prompt: string) => Promise<string | undefined>;
   readonly onBrowseSamples: () => void;
 }
 
@@ -23,7 +23,7 @@ export const Hero = ({ state, running, submit, onBrowseSamples }: HeroProps): Re
       actually drew. The best two are rewritten with the criticism. Three rounds, about seven
       minutes.
     </p>
-    {state === "up" ? null : (
+    {state === "up" || state === "probing" ? null : (
       <p className="how">
         Live runs are off right now.{" "}
         <button type="button" className="linkish" onClick={onBrowseSamples}>

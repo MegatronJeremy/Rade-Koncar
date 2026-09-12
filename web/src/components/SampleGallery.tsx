@@ -1,30 +1,9 @@
 import { useQuery } from "convex/react";
-import { Component, useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
+import { Boundary } from "./Boundary";
 import { api } from "../../convex/_generated/api";
 import type { Run } from "../types";
 import { SampleBar } from "./SampleBar";
-
-/**
- * A query for a function the deployment does not have yet throws during render,
- * and an unguarded throw blanks the entire page. The gallery is the newest and
- * least important thing on screen, so it fails alone: the grid, the prompt box
- * and every sample already pinned keep working.
- */
-class Boundary extends Component<{ readonly children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
-  }
-
-  componentDidCatch(error: unknown): void {
-    console.warn("[samples] gallery unavailable:", error);
-  }
-
-  render(): ReactNode {
-    return this.state.failed ? null : this.props.children;
-  }
-}
 
 interface GalleryProps {
   /** Kept mounted while hidden: the query feeds the tab's count. */
@@ -32,10 +11,13 @@ interface GalleryProps {
   readonly selectedId: string | undefined;
   readonly onPick: (runId: string) => void;
   readonly liveRunning: boolean;
+  /** True while the live run owns the view and no sample has been picked. */
+  readonly showingLive?: boolean;
+  readonly onFollowLive?: () => void;
   readonly onLoaded: (runs: readonly Run[]) => void;
 }
 
-const Inner = ({ hidden, selectedId, onPick, liveRunning, onLoaded }: GalleryProps): React.JSX.Element | null => {
+const Inner = ({ hidden, selectedId, onPick, liveRunning, showingLive, onFollowLive, onLoaded }: GalleryProps): React.JSX.Element | null => {
   const samples = useQuery(api.runs.sampleRuns);
   // Convex brands its ids; Run narrows them to string, so widen on the way out.
   const withTiles = (samples ?? []).filter((r) =>
@@ -72,12 +54,14 @@ const Inner = ({ hidden, selectedId, onPick, liveRunning, onLoaded }: GalleryPro
       selectedId={selectedId}
       onPick={onPick}
       liveRunning={liveRunning}
+      showingLive={showingLive ?? false}
+      onFollowLive={onFollowLive}
     />
   );
 };
 
 export const SampleGallery = (props: GalleryProps): React.JSX.Element => (
-  <Boundary>
+  <Boundary what="samples">
     <Inner {...props} />
   </Boundary>
 );

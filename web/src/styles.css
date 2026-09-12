@@ -1128,3 +1128,92 @@ body {
   font-size: 13.5px;
   line-height: 1.5;
 }
+
+/* ---------- your own runs ---------- */
+
+.yours {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0 var(--edge) 30px;
+}
+
+.yours-head {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-dim);
+}
+
+.yours-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 820px;
+}
+
+.yours-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--bench);
+  color: var(--ink-dim);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yours-row:hover {
+  color: var(--ink);
+  border-color: var(--rule-soft);
+}
+
+.yours-row.is-active {
+  border-color: var(--mark);
+  color: var(--ink);
+}
+
+.yours-prompt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.yours-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.yours-meta b {
+  color: var(--mark);
+  font-family: var(--machine);
+  font-variant-numeric: tabular-nums;
+}
+
+.yours-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mark);
+}
+
+.yours-failed {
+  color: var(--fail);
+}
+
+.yours-when {
+  font-variant-numeric: tabular-nums;
+}

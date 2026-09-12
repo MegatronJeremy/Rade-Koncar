@@ -64,13 +64,31 @@ createServer((req, res) => {
       return;
     }
     inFlight = prompt;
-    // Answer immediately; the UI watches Convex for everything that follows.
-    res.writeHead(202, { ...CORS, "Content-Type": "application/json" }).end(JSON.stringify({ accepted: true }));
-    runOnce(prompt)
-      .catch((err) => process.stderr.write(`[run] ${String(err)}\n`))
-      .finally(() => {
-        inFlight = undefined;
-      });
+    /*
+     * The id goes back to whoever asked, so the page can follow its own run and
+     * nobody else's. Without it every visitor was shown whichever run happened
+     * to be newest, which meant one person's prompt took over everyone's screen.
+     *
+     * Resolved on failure too: a run that dies before createRun must answer the
+     * request rather than leave it hanging.
+     */
+    const created = new Promise<string | undefined>((resolve) => {
+      runOnce(prompt, resolve)
+        .catch((err) => {
+          process.stderr.write(`[run] ${String(err)}\n`);
+          resolve(undefined);
+        })
+        .finally(() => {
+          inFlight = undefined;
+          resolve(undefined);
+        });
+    });
+
+    void created.then((runId) => {
+      res
+        .writeHead(202, { ...CORS, "Content-Type": "application/json" })
+        .end(JSON.stringify({ accepted: runId !== undefined, runId: runId ?? null }));
+    });
     void steering;
   });
 }).listen(port, () => {
