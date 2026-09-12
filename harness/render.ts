@@ -28,16 +28,6 @@ const CHROMIUM_ARGS = [
   "--disable-dev-shm-usage",
 ];
 
-declare global {
-  interface Window {
-    harness: {
-      ready: boolean;
-      compile(source: string): { ok: boolean; log: string; ms: number };
-      captureAt(t: number): { dataUrl: string; ms: number };
-    };
-  }
-}
-
 function parseArgs(argv: string[]): { in: string; out: string } {
   const opts = new Map<string, string>();
   for (let i = 0; i < argv.length; i += 2) {

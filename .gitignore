@@ -17,6 +17,7 @@ out/
 harness/render.js
 harness/snapshot.js
 harness/verify-sandbox.js
+harness/batch.js
 
 # Playwright.
 playwright-report/

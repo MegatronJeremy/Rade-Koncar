@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "files": ["render.ts", "snapshot.ts", "verify-sandbox.ts"]
+  "files": ["harness-window.d.ts", "render.ts", "snapshot.ts", "verify-sandbox.ts", "batch.ts"]
 }
