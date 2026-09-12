@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { CandidateDetail } from "./components/CandidateDetail";
 import { Column } from "./components/Column";
+import { PromptBox } from "./components/PromptBox";
 import { indexCandidates } from "./fixtures";
 import { useFrameTick } from "./hooks/useFrameTick";
+import { useOrchestrator } from "./hooks/useOrchestrator";
 import type { Candidate, Generation, Run } from "./types";
 
 export interface AppProps {
@@ -22,6 +24,7 @@ const bestTotal = (generation: Generation): number =>
 
 export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
   const frame = useFrameTick();
+  const orchestrator = useOrchestrator();
   const [shownGenerationId, setShownGenerationId] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<Candidate | undefined>(undefined);
 
@@ -40,8 +43,16 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
   }
 
   const control = run.generations[0];
+  /*
+   * A generation exists from createGeneration, before its six candidates do, so
+   * defaulting to the newest one empties the right column at the start of every
+   * round. Fall back to the newest that actually holds tiles; an explicit pick
+   * from the round picker still wins.
+   */
+  const withTiles = run.generations.filter((g) => g.candidates.length > 0);
   const shown =
     run.generations.find((g) => g.id === shownGenerationId) ??
+    withTiles[withTiles.length - 1] ??
     run.generations[run.generations.length - 1];
 
   if (control === undefined || shown === undefined) {
@@ -71,6 +82,7 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
           rendered frames: palette, motion and subject, 10 each. Anything that renders flat or
           never moves is rejected on the pixels first, without a vision call.
         </p>
+        <PromptBox state={orchestrator.state} submit={orchestrator.submit} />
       </header>
 
       <div className="run-bar">
@@ -107,7 +119,7 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
           note={
             shown.index === control.index
               ? "Waiting for the first round of feedback"
-              : `After ${shown.index - 1} round${shown.index - 1 === 1 ? "" : "s"} of rendering, scoring and mutation${gain > 0 ? ` — best score up ${gain}` : ""}`
+              : `After ${shown.index - 1} round${shown.index - 1 === 1 ? "" : "s"} of rendering, scoring and mutation${gain > 0 ? `, best score up ${gain}` : ""}`
           }
           frame={frame}
           onSelect={setSelected}
