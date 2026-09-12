@@ -44,7 +44,7 @@ If you treat compile failures as exceptions your loop will fall over constantly 
 
 **Do this before building the loop.** It is the highest-value thirty minutes of the day and it is not optional.
 
-For each prompt in `prompts/demo-candidates.md`: generate six one-shot candidates, paste them one by one into Vuk's standalone harness tab, and count how many render acceptably. Write the counts into `prompts/thesis-test.md`.
+For each prompt in `prompts/samples.md`: generate six one-shot candidates, paste them one by one into Vuk's standalone harness tab, and count how many render acceptably. Write the counts into `prompts/thesis-test.md`.
 
 Judge "acceptable" by the three criteria in `00-primer.md` §8 — not blank, it moves, you would recognise the prompt from the image. **Be strict.** A generous count makes our own product look unnecessary.
 

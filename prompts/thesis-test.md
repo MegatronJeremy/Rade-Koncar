@@ -10,11 +10,11 @@ That is worth thirty minutes to find out early rather than at 17:00 with the vid
 
 ## Method
 
-For each prompt in `demo-candidates.md`:
+For each prompt in `samples.md`:
 
 1. Generate six one-shot candidates with `codegen.md`, no loop, no feedback.
 2. Paste each into the standalone `harness.html` tab and look at it.
-3. Count how many are acceptable by the three criteria in `demo-candidates.md`.
+3. Count how many are acceptable by the three criteria in `samples.md`.
 
 If the harness tab is not ready, paste into Shadertoy instead. Same test, same counts, no dependency on our code.
 
@@ -40,7 +40,7 @@ match it to the words.
 
 ### The prediction that was wrong
 
-`demo-candidates.md` expected the ball to hover, drift or fall through the floor.
+`samples.md` expected the ball to hover, drift or fall through the floor.
 It does none of those. Bouncing a circle on a line over `iTime` is a well-trodden
 shader exercise and the model has it. What actually discriminates is whether the
 subject has a *shape the model must invent*: a flame is not a primitive, so it

@@ -47,9 +47,15 @@ export default defineSchema({
     createdAt: v.number(),
     /** Marks the one saved demo run the public URL falls back to. */
     pinned: v.optional(v.boolean()),
+    /**
+     * Marks a run as a showcase sample. Unlike `pinned` there can be many: the
+     * samples are the gallery a visitor browses before typing their own prompt.
+     */
+    sample: v.optional(v.boolean()),
   })
     .index("by_createdAt", ["createdAt"])
-    .index("by_pinned", ["pinned"]),
+    .index("by_pinned", ["pinned"])
+    .index("by_sample", ["sample"]),
 
   generations: defineTable({
     runId: v.id("runs"),

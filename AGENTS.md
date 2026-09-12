@@ -38,7 +38,7 @@ conflicts and of waiting.
 | `harness/` | Vuk | [`docs/02-harness-vuk.md`](docs/02-harness-vuk.md) | `harness.html`, `render.ts`, `Dockerfile`, `fixtures/`, `README.md` |
 | `orchestrator/` | Pavle | [`docs/03-orchestrator-pavle.md`](docs/03-orchestrator-pavle.md) | `generate.ts`, `sandbox.ts`, `score.ts`, `loop.ts`, `server.ts` |
 | `web/` | Djordje | [`docs/04-web-djordje.md`](docs/04-web-djordje.md) | Convex backend (`convex/`), Vite React UI (`src/`), Render config |
-| `prompts/` | shared | | `codegen.md`, `rubric.md`, `mutation.md`, `demo-candidates.md`, `thesis-test.md` |
+| `prompts/` | shared | | `codegen.md`, `rubric.md`, `mutation.md`, `samples.md`, `thesis-test.md` |
 | `experiments/` | Pavle | [`experiments/README.md`](experiments/README.md) | Versioned evidence: candidates, frames, manifests, and the review page |
 | `docs/` | shared | | this folder |
 
@@ -158,7 +158,7 @@ The markdown in this repo is a closed set. Do not add to it.
 | `docs/*.md` | per the table above | The plan, the contracts, the schedule |
 | `harness/README.md` | Vuk | Snapshot name and the exact command line, which is how Pavle knows to swap out his stub |
 | `prompts/codegen.md`, `prompts/rubric.md` | Vuk | Model instructions |
-| `prompts/mutation.md`, `prompts/demo-candidates.md`, `prompts/thesis-test.md` | Pavle | Model instructions, the eight prompt candidates, and the one-shot counts |
+| `prompts/mutation.md`, `prompts/samples.md`, `prompts/thesis-test.md` | Pavle | Model instructions, the sample prompts, and the one-shot counts |
 | `experiments/README.md` | Pavle | What each experiment measured and how to rerun it |
 | `.env.example` | shared | Every variable, no values |
 

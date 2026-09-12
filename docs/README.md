@@ -47,7 +47,7 @@ Each person owns one folder and does not write outside it. This is how three peo
 harness/       Vuk       harness.html, render.ts, Dockerfile, fixtures/, README.md
 orchestrator/  Pavle     generate.ts, sandbox.ts, score.ts, loop.ts, server.ts
 web/           Djordje   Convex project (convex/) + Vite React UI (src/) + Render config
-prompts/       shared    codegen.md, rubric.md, mutation.md, demo-candidates.md, thesis-test.md
+prompts/       shared    codegen.md, rubric.md, mutation.md, samples.md, thesis-test.md
 docs/          shared    this folder
 .env.example   shared    every variable listed, no values
 ```
@@ -64,22 +64,23 @@ Each folder has its own `package.json`. No monorepo tooling — it costs setup t
 - Log every external call (x.ai, Daytona, Convex, Fal) with its duration. At 16:00, when something is slow, this will be the only thing that tells you which one.
 - **Keep the demo path working at all times.** A half-built feature that breaks the grid is worse than no feature. We are judged on a video of one path working, not on how much exists.
 
-## Demo prompts
+## Samples
 
-The full list lives in `prompts/demo-candidates.md`. We test all eight and demo the three where the AI does *worst* on its first try.
+`prompts/samples.md` is the list, the rule for choosing one, and what has been
+rejected. The demo shows three.
 
-1. ink dropping into water, slow, black on paper white
-2. rain on a night window with city bokeh behind it
-3. stained glass window with the sun moving behind it
-4. aurora over a dark ridge, slow, green to violet
-5. molten metal cooling, dark crust forming, orange cracks
-6. knitted wool texture slowly breathing
-7. bioluminescent jellyfish pulsing in deep water
-8. oil slick on wet asphalt shifting colours
+**The rule: pick prompts whose subject the model must invent the shape of.** Ten
+prompts were tested one-shot. Everything built from primitives passed first try,
+because the model already has them: a ball is a signed-distance circle, a clock
+is lines rotating about a point, snow is dots falling. A flame has no primitive
+behind it, so the silhouette has to be invented, and one-shot invents it badly.
 
-**Banned for the demo: lava lamp, plasma, plain gradients.**
+Confirmed sample: **a candle flame flickering in the dark**, one of six
+acceptable one-shot. Round 1 best 20 and mean 9.3; round 3 best 25 and mean 18.5.
 
-This is the most important line in this file, so here is the reasoning. Those three are the classic beginner shader exercises. There are thousands of them on Shadertoy, so the model writes them correctly on the first attempt. If we demo one, round one already looks right, round three looks the same, and our entire product appears to do nothing. **We must demo prompts where the first attempt visibly fails.** That is what the thesis test at 12:15 is for.
+Also avoid lava lamp, plasma and plain gradients. They are the classic beginner
+exercises, there are thousands of each on Shadertoy, and the model writes them
+correctly first try.
 
 ## The one-shot column
 

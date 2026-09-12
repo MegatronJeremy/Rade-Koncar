@@ -1,13 +1,20 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spend = void 0;
 exports.generateCandidates = generateCandidates;
 exports.mutateCandidates = mutateCandidates;
 exports.scoreFrames = scoreFrames;
 exports.assertProvider = assertProvider;
+const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
+const openai_1 = __importDefault(require("openai"));
+const zod_1 = require("@anthropic-ai/sdk/helpers/zod");
 const node_child_process_1 = require("node:child_process");
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
+const zod_2 = require("zod");
 const env_1 = require("./env");
 const PROMPTS = (0, node_path_1.resolve)(__dirname, "..", "prompts");
 const read = (f) => (0, node_fs_1.readFileSync)((0, node_path_1.resolve)(PROMPTS, f), "utf8");
@@ -79,6 +86,12 @@ async function cli(call) {
 const looksLikeShader = (c) => c.source.includes("void mainImage(") && !c.source.includes("#version") && !/\bvoid\s+main\s*\(/.test(c.source);
 /** Six candidates for a prompt. Anything failing the signature check is dropped. */
 async function generateCandidates(prompt) {
+    const sys = read("codegen.md");
+    const user = `Write six shaders for: ${prompt}`;
+    if (provider() === "anthropic")
+        return apiCandidates(sys, user);
+    if (provider() === "xai")
+        return xaiCandidates(sys, user);
     const out = (await cli({
         system: read("codegen.md"),
         prompt: `Write six shaders for: ${prompt}`,
@@ -101,6 +114,11 @@ async function mutateCandidates(prompt, survivors, steering) {
         "A revision changes what the critique points at. Do not rewrite a survivor from",
         "scratch, and do not return it unchanged.",
     ].join("\n");
+    const msys = read("codegen.md") + "\n\n" + read("mutation.md");
+    if (provider() === "anthropic")
+        return apiCandidates(msys, body);
+    if (provider() === "xai")
+        return xaiCandidates(msys, body);
     const out = (await cli({
         system: read("codegen.md") + "\n\n" + read("mutation.md"),
         prompt: body,
@@ -113,6 +131,10 @@ async function mutateCandidates(prompt, survivors, steering) {
  * the caller writes them somewhere absolute first and passes the paths.
  */
 async function scoreFrames(prompt, framePaths) {
+    if (provider() === "anthropic")
+        return apiVision(prompt, framePaths);
+    if (provider() === "xai")
+        return xaiVision(prompt, framePaths);
     const body = [
         `Description: ${prompt}`, "",
         "Read these three frames of one shader, at t = 0, 1 and 2 seconds:",
@@ -125,10 +147,147 @@ async function scoreFrames(prompt, framePaths) {
         tools: ["Read"],
     }));
 }
+// ---------------------------------------------------------------------------
+// anthropic: the provider a deployed orchestrator uses. claude-cli cannot
+// authenticate inside a container, so the published service needs an HTTP key.
+// ---------------------------------------------------------------------------
+const CandidatesZ = zod_2.z.object({
+    candidates: zod_2.z
+        .array(zod_2.z.object({ strategy: zod_2.z.string(), source: zod_2.z.string() }))
+        .length(6),
+});
+const VisionZ = zod_2.z.object({
+    palette: zod_2.z.number(),
+    motion: zod_2.z.number(),
+    subject: zod_2.z.number(),
+    critique: zod_2.z.string(),
+});
+/** Per million tokens, for the spend counter. Sonnet 5 unless overridden. */
+const RATES = {
+    "claude-sonnet-5": { in: 2, out: 10 },
+    "claude-opus-5": { in: 5, out: 25 },
+    "claude-haiku-4-5": { in: 1, out: 5 },
+};
+let anthropicClient;
+const anthropic = () => {
+    anthropicClient ??= new sdk_1.default({ apiKey: (0, env_1.need)("ANTHROPIC_API_KEY") });
+    return anthropicClient;
+};
+const anthropicModel = () => (0, env_1.opt)("ANTHROPIC_MODEL", "claude-sonnet-5");
+const bill = (usage) => {
+    const r = RATES[anthropicModel()] ?? RATES["claude-sonnet-5"];
+    spentUSD += ((usage?.input_tokens ?? 0) * r.in + (usage?.output_tokens ?? 0) * r.out) / 1_000_000;
+};
+async function apiCandidates(system, prompt) {
+    const res = await anthropic().messages.parse({
+        model: anthropicModel(),
+        max_tokens: 16000,
+        thinking: { type: "adaptive" },
+        system,
+        messages: [{ role: "user", content: prompt }],
+        output_config: { format: (0, zod_1.zodOutputFormat)(CandidatesZ) },
+    });
+    bill(res.usage);
+    return (res.parsed_output?.candidates ?? []).filter(looksLikeShader);
+}
+async function apiVision(prompt, framePaths) {
+    const images = framePaths.map((p) => ({
+        type: "image",
+        source: {
+            type: "base64",
+            media_type: "image/png",
+            data: (0, node_fs_1.readFileSync)(p).toString("base64"),
+        },
+    }));
+    const res = await anthropic().messages.parse({
+        model: anthropicModel(),
+        max_tokens: 4000,
+        system: read("rubric.md"),
+        messages: [
+            {
+                role: "user",
+                content: [
+                    ...images,
+                    {
+                        type: "text",
+                        text: `Description: ${prompt}\nThe three images are the same shader at t = 0, 1 and 2 seconds, in that order.`,
+                    },
+                ],
+            },
+        ],
+        output_config: { format: (0, zod_1.zodOutputFormat)(VisionZ) },
+    });
+    bill(res.usage);
+    const v = res.parsed_output;
+    if (v === null || v === undefined)
+        throw new Error("vision returned no parsed output");
+    void node_path_1.basename;
+    return v;
+}
+// ---------------------------------------------------------------------------
+// xai: the partner model. OpenAI-compatible, so the standard SDK works against
+// a different baseURL. Structured output goes through response_format rather
+// than a typed helper, and the parse is defensive because nothing guarantees
+// the shape the way the other two providers do.
+// ---------------------------------------------------------------------------
+let xaiClient;
+const xai = () => {
+    xaiClient ??= new openai_1.default({ apiKey: (0, env_1.need)("XAI_API_KEY"), baseURL: "https://api.x.ai/v1" });
+    return xaiClient;
+};
+const xaiModel = () => (0, env_1.need)("XAI_MODEL");
+/** Models wrap JSON in prose or fences regardless of instructions. Dig it out. */
+const looseJson = (text) => {
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const body = fenced?.[1] ?? text;
+    const start = body.search(/[[{]/);
+    if (start === -1)
+        throw new Error(`no JSON in model output: ${text.slice(0, 200)}`);
+    return JSON.parse(body.slice(start));
+};
+async function xaiJson(system, content, schema, name) {
+    const res = await xai().chat.completions.create({
+        model: xaiModel(),
+        messages: [
+            { role: "system", content: system },
+            { role: "user", content: content },
+        ],
+        response_format: { type: "json_schema", json_schema: { name, schema, strict: true } },
+    });
+    const u = res.usage;
+    // x.ai pricing is not tracked here; token counts go to the log instead.
+    if (u)
+        console.log(`[xai] in=${u.prompt_tokens} out=${u.completion_tokens}`);
+    return looseJson(res.choices[0]?.message?.content ?? "");
+}
+async function xaiCandidates(system, prompt) {
+    const out = (await xaiJson(system, prompt, CANDIDATES_SCHEMA, "candidates"));
+    return (out.candidates ?? []).filter(looksLikeShader);
+}
+async function xaiVision(prompt, framePaths) {
+    const parts = [
+        ...framePaths.map((p) => ({
+            type: "image_url",
+            image_url: { url: `data:image/png;base64,${(0, node_fs_1.readFileSync)(p).toString("base64")}` },
+        })),
+        {
+            type: "text",
+            text: `Description: ${prompt}\nThe three images are the same shader at t = 0, 1 and 2 seconds, in that order.`,
+        },
+    ];
+    return (await xaiJson(read("rubric.md"), parts, VISION_SCHEMA, "vision"));
+}
+const provider = () => (0, env_1.opt)("LLM_PROVIDER", "claude-cli");
 function assertProvider() {
-    const p = (0, env_1.opt)("LLM_PROVIDER", "claude-cli");
-    if (p !== "claude-cli") {
-        throw new Error(`LLM_PROVIDER=${p} is not implemented yet; only claude-cli is. See docs/01-contracts.md.`);
+    const p = provider();
+    if (p === "anthropic")
+        (0, env_1.need)("ANTHROPIC_API_KEY");
+    else if (p === "xai") {
+        (0, env_1.need)("XAI_API_KEY");
+        (0, env_1.need)("XAI_MODEL");
+    }
+    else if (p !== "claude-cli") {
+        throw new Error(`LLM_PROVIDER=${p} is not implemented. Use claude-cli, anthropic or xai.`);
     }
     (0, env_1.need)("CONVEX_URL");
 }

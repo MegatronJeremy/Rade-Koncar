@@ -102,6 +102,31 @@ export const pinnedRun = query({
   },
 });
 
+/** Flag or unflag a run as a showcase sample. Many runs may be samples. */
+export const markSample = mutation({
+  args: { runId: v.id("runs"), sample: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.runId, { sample: args.sample ?? true });
+  },
+});
+
+/**
+ * Every sample, newest first, hydrated. The gallery renders these before the
+ * visitor has typed anything, and they are what the page shows when no
+ * orchestrator is reachable.
+ */
+export const sampleRuns = query({
+  args: {},
+  handler: async (ctx) => {
+    const runs = await ctx.db
+      .query("runs")
+      .withIndex("by_sample", (q) => q.eq("sample", true))
+      .order("desc")
+      .collect();
+    return Promise.all(runs.map((run) => hydrateRun(ctx, run)));
+  },
+});
+
 export const runWithCandidates = query({
   args: { runId: v.id("runs") },
   handler: async (ctx, args) => {

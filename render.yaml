@@ -9,9 +9,6 @@
 #   VITE_CONVEX_URL        once `npx convex dev` prints it
 #   VITE_ORCHESTRATOR_URL  once Pavle's service is up
 #
-# The orchestrator web service is not here either — its folder does not exist
-# yet, so it would only produce a failing service. Add it once `orchestrator/`
-# is on main.
 
 services:
   - type: web
@@ -25,3 +22,34 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  # Prompt in, three rounds out. claude-cli cannot authenticate in a container,
+  # so the published service runs LLM_PROVIDER=anthropic. Secrets are set in the
+  # dashboard, not here.
+  - type: web
+    name: shader-arena-orchestrator
+    runtime: node
+    rootDir: orchestrator
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      # xai is the partner model and the default for the published service.
+      # Switch to anthropic in the dashboard if Grok vision does not hold up.
+      - key: LLM_PROVIDER
+        value: xai
+      - key: DAYTONA_SNAPSHOT
+        value: shader-arena-harness
+      - key: XAI_API_KEY
+        sync: false
+      - key: XAI_MODEL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: DAYTONA_API_KEY
+        sync: false
+      - key: CONVEX_URL
+        sync: false

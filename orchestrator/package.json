@@ -9,10 +9,13 @@
     "serve": "node server.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@daytonaio/sdk": "0.211.2",
     "@types/pngjs": "^6.0.5",
     "convex": "^1.17.0",
-    "pngjs": "^7.0.0"
+    "openai": "^7.15.0",
+    "pngjs": "^7.0.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
