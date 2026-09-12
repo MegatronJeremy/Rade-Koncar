@@ -12,6 +12,8 @@ Then `loop.ts` and `server.ts`.
 
 **Done when** `POST /run` executes three generations end to end against the stub and every state change — queued, rendering, scoring, scored, survived — lands in Convex as it happens.
 
+**Do not wait on Convex to write `loop.ts`.** The state machine — queued, rendering, scoring, scored, survived — does not need Convex to exist. Build it against an in-memory logger and swap in the mutation calls when Djordje's `CONVEX_URL` lands, or you will be idle between roughly 12:45 and 13:00.
+
 ## The thesis test — 12:15 at the latest
 
 **Do this before building the loop.** It is the highest-value thirty minutes of the day.
@@ -38,7 +40,8 @@ CORS: the browser calls `POST /run` directly. Send permissive CORS headers or th
 ## Second bullet
 
 - Real sandbox fan-out with reuse across generations, per-candidate timeout.
-- Scoring pipeline — import Vuk's pure prefilter functions, then the vision call.
+- `score.ts` — the deterministic prefilter as pure functions over pixel buffers: `flat`, `motion`, histogram distance. Yours, not Vuk's: you are the only consumer and he is on the critical path twice.
+- Scoring pipeline — prefilter first, vision call only on survivors.
 - Mutation prompt.
 - Reference mode: Fal call at run start, reference stored on the run, image attached to the vision call.
 - **If the Daytona concurrency limit is under six, decide by 13:30: batches, or `POP = 4`.** Do not discover this at 15:00.

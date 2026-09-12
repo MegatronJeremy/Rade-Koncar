@@ -17,6 +17,41 @@
 
 **Nothing ships after 17:00.** That window is video, README, submission and rehearsing the pitch.
 
+## Dependencies and handoffs
+
+The three folders are independent from minute zero. There are four handoff points, and two of them land on Vuk, who is also the critical path — so his first thirty minutes are ordered to unblock other people **before** he starts on his own.
+
+```
+Vuk: fixtures (good/bad/hang.glsl + 3 PNGs)  ──►  Pavle's sandbox stub       ~12:30
+Vuk: standalone harness.html tab             ──►  Pavle's THESIS TEST         12:15   ← tightest
+Djordje: Convex schema deployed + CONVEX_URL ──►  Pavle's loop.ts writes     ~13:00
+Vuk: snapshot name in harness/README.md      ──►  Pavle swaps out the stub   ~13:00
+
+later:
+Pavle: score.ts prefilter functions          ──►  Pavle's scoring pipeline   ~14:00
+Pavle: VITE_ORCHESTRATOR_URL                 ──►  Djordje's prompt box       second bullet
+```
+
+### Vuk's first thirty minutes, in this order
+
+The 12:15 thesis test is the tightest coupling in the day and it lands on the person who also owns the 13:00 snapshot gate. So:
+
+1. **0–5 min — fixtures.** `good.glsl`, `bad.glsl`, `hang.glsl`, and three real PNGs in `harness/fixtures/`. This frees Pavle's stub immediately and costs almost nothing.
+2. **5–35 min — `harness.html` standalone**, textarea and a Run button. This frees the thesis test.
+3. **Then** `render.ts`, the Dockerfile and the snapshot.
+
+Do not start the Docker work before step 2 is usable in a browser tab.
+
+### Two de-riskers
+
+**Pavle does not wait on Convex for `loop.ts`.** The state machine — queued, rendering, scoring, scored, survived — does not need Convex to exist. Write it against an in-memory logger and swap in the mutation calls when `CONVEX_URL` lands. Otherwise there is dead time between roughly 12:45 and 13:00.
+
+**`score.ts` prefilter functions belong to Pavle, not Vuk.** They are pure functions over pixel buffers, Pavle is the only consumer, and Vuk is on the critical path twice already. Moved — see `03-orchestrator-pavle.md`.
+
+### Standing rule
+
+Nobody waits. Every doc names the stub to build against. If you are blocked, you are building against the wrong thing.
+
 ## Gates
 
 | Time | Gate | If it fails |

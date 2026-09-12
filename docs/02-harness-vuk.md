@@ -2,6 +2,16 @@
 
 You own `harness/`. You are the critical path: nothing else in the product can be proven until a sandbox produces a PNG.
 
+## Order of work — this matters more than usual
+
+You are on the critical path twice: Pavle's 12:15 thesis test needs your standalone harness tab, and the 13:00 gate needs your snapshot. So unblock other people first.
+
+1. **0–5 min — fixtures.** `good.glsl`, `bad.glsl`, `hang.glsl` and three real PNGs in `harness/fixtures/`. Frees Pavle's stub immediately, costs almost nothing.
+2. **5–35 min — `harness.html` standalone**, textarea and a Run button. Frees the thesis test.
+3. **Then** `render.ts`, the Dockerfile and the snapshot.
+
+Do not start the Docker work before step 2 is usable in a browser tab.
+
 ## First bullet — target 13:00
 
 Build `harness.html` and `render.ts` so that:
@@ -69,7 +79,6 @@ A fragment shader with an unbounded loop locks the renderer thread. In a sandbox
 
 ## Second bullet — only after the first is checked in
 
-- `score.ts` prefilter functions — `flat`, `motion`, histogram distance — as **pure functions Pavle imports**. Do not wire them into anything.
 - `prompts/rubric.md`.
 - `prompts/codegen.md` with a helper block: hash, value noise, fbm, palette function. This raises the compile rate more than any prompt wording.
 - Run the three chosen demo prompts through generation 1 and fix whatever renders black.
