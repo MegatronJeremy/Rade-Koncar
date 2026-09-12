@@ -1,0 +1,28 @@
+# Secrets. .env.example is tracked and carries the variable list.
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output, per folder.
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Harness render output. `node render.js --out out/` writes here.
+# Committed frames live in harness/fixtures/ and are not covered by this.
+out/
+
+# Playwright.
+playwright-report/
+test-results/
+.playwright/
+
+# Logs.
+*.log
+npm-debug.log*
+
+# OS and editor.
+.DS_Store
+.idea/
+.vscode/
