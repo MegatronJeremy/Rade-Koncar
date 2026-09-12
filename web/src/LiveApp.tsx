@@ -1,8 +1,8 @@
 import { useQuery } from "convex/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../convex/_generated/api";
 import { App } from "./App";
-import { SampleBar } from "./components/SampleBar";
+import { SampleGallery } from "./components/SampleGallery";
 import { SEEDED_RUN } from "./fixtures";
 import type { Run } from "./types";
 
@@ -34,29 +34,36 @@ const pickRun = (live: Run | null, pinned: Run | null): Run | undefined => {
 export const LiveApp = (): React.JSX.Element => {
   const live = useQuery(api.runs.latestRun);
   const pinned = useQuery(api.runs.pinnedRun);
-  const samples = useQuery(api.runs.sampleRuns);
   const [chosenId, setChosenId] = useState<string | undefined>(undefined);
+
+  /*
+   * The gallery owns its own query so that a deployment missing sampleRuns
+   * takes down the bar and nothing else. It hands the loaded runs back here,
+   * through a ref rather than state, because writing state during another
+   * component's render would loop.
+   */
+  const galleryRef = useRef<readonly Run[]>([]);
 
   // `undefined` means still loading; `null` means loaded and absent.
   const loading = live === undefined || pinned === undefined;
-  const gallery: Run[] = (samples ?? []).filter(hasTiles);
-  const chosen = gallery.find((r) => r.id === chosenId);
+  const chosen = galleryRef.current.find((r) => r.id === chosenId);
 
   /*
    * A run happening now always wins: someone is watching their own prompt. A
-   * sample the visitor picked comes next, then the pinned run, then whatever
-   * else Convex has.
+   * sample the visitor picked comes next, then the pinned run.
    */
   const liveRunning = hasTiles(live) && live.status === "running";
   const fromConvex = loading ? undefined : liveRunning ? live : (chosen ?? pickRun(live, pinned));
 
   return (
     <>
-      <SampleBar
-        samples={gallery}
-        selectedId={chosen?.id ?? (liveRunning ? undefined : fromConvex?.id)}
+      <SampleGallery
+        selectedId={liveRunning ? undefined : (chosen?.id ?? fromConvex?.id)}
         onPick={setChosenId}
         liveRunning={liveRunning}
+        onLoaded={(runs) => {
+          galleryRef.current = runs;
+        }}
       />
       <App run={fromConvex ?? SEEDED_RUN} isSample={fromConvex === undefined} />
     </>
