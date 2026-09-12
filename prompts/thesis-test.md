@@ -46,7 +46,9 @@ Reference mode becomes core only if one-shot scored five or six on everything, w
 
 48 candidates, six per prompt, on the prompt list as it stood before 13:25. That list was retired for being too abstract to judge quickly and unconvincing on video, so **these counts do not select anything.** They are kept because two of the findings survive the change of list.
 
-Generated with one `claude -p` call per prompt through `codegen.md` unmodified, $2.55, 96 to 156 seconds per prompt, no repair call. Rendered with `harness/batch.js`, which lays a generation's six t1 frames out as one sheet. Sheets for four of them are in `thesis-sheets/`.
+Generated with one `claude -p` call per prompt through `codegen.md` unmodified, $2.55, 96 to 156 seconds per prompt, no repair call. Rendered with `harness/batch.js`.
+
+Everything it produced is in `experiments/003-oneshot-opus-5`, so the counts below can be disagreed with rather than taken on trust. Open its `index.html`: every candidate runs live in WebGL beside its captured frames, its prefilter numbers and its source.
 
 | # | Prompt | Acceptable / 6 | Notes |
 |---|---|---|---|

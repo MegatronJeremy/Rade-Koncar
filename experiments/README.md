@@ -55,3 +55,16 @@ megabytes.
 | ID | What | Model | Result |
 |---|---|---|---|
 | `001-oneshot-sonnet-5` | One-shot baseline across the demo prompt candidates | `claude-sonnet-5` | see `prompts/thesis-test.md` |
+| `003-oneshot-opus-5` | One-shot across the eight abstract prompts, retired 13:25 | `claude-opus-5` | 13/48 acceptable, 48/48 compiled. see `prompts/thesis-test.md` |
+
+`003` was rendered with `harness/batch.js` rather than `bin/run.sh`: one browser for
+the whole set instead of one per candidate, and it emits the same `result.json`, so the
+output drops into this layout unchanged.
+
+```bash
+cd harness && node batch.js --in <dir of .glsl> --out <dir> [--times 0,1,2]
+```
+
+It also writes `sheet.png`, a single image of a generation's six t1 frames, and
+`summary.json` with the contract §4 prefilter numbers. `--times` moves the sampled
+seconds, which is how the motion window finding in `thesis-test.md` was measured.

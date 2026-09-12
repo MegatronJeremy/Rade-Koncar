@@ -106,6 +106,30 @@ The `animate` checkbox is a preview affordance. Capture never runs off a clock: 
 set to exactly 0.0, 1.0 and 2.0, so the same source gives byte-identical frames on every
 run. Verified: two `captureAt(1.0)` calls return the same data URL.
 
+## batch.js
+
+Renders a directory of candidates in one browser and lays their t1 frames out as a
+single sheet, so a generation is judged by looking at one image.
+
+```bash
+node batch.js --in <dir of .glsl> --out <dir> [--times 0,1,2]
+```
+
+Per candidate it writes `t0/t1/t2.png` and a `result.json` of the same shape `render.js`
+produces, so the output is readable by anything that already reads a single render,
+including `experiments/bin/sheet.sh`. Alongside those it writes `sheet.png` and a
+`summary.json` carrying the contract §4 prefilter numbers, luminance stddev and t0/t2
+mean absolute difference, with `FLAT` and `STILL` flagged.
+
+Six candidates take 2.0 s, against 10.9 s for the same six one at a time through
+`render.js`, because the browser starts once instead of six times. A candidate that
+hangs kills only its own browser: the run relaunches and continues, so one bad shader
+costs the batch 20 seconds rather than the whole set.
+
+`--times` moves the three sampled seconds. Contract §1 fixes the scored frames at 0, 1
+and 2, so this is for measuring how much a candidate moves over a longer window than the
+one it is scored on, which is what separates a still shader from a deliberately slow one.
+
 ## Fixtures
 
 | File | Behaviour |

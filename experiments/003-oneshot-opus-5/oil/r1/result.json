@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "frames": [
+    "t0.png",
+    "t1.png",
+    "t2.png"
+  ],
+  "log": "",
+  "times": [
+    0,
+    1,
+    2
+  ]
+}

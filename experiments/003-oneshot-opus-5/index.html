@@ -1,0 +1,643 @@
+<meta charset="utf-8"><title>experiment</title>
+<style>
+ :root{--bg:#0b0d10;--panel:#12161b;--line:#1a1e24;--fg:#eceff4;--dim:#7c8698;
+       --ok:#30c48d;--bad:#e5484d;--blue:#3e9bff}
+ *{box-sizing:border-box}
+ body{background:var(--bg);color:var(--fg);font:14px/1.55 system-ui;margin:0;padding:24px}
+ h1{font-size:19px;margin:0 0 2px}h2{font-size:16px;margin:34px 0 2px;scroll-margin-top:60px}
+ .meta,.pr{color:var(--dim);font-size:13px;margin:0 0 10px}
+ .bar{position:sticky;top:0;z-index:9;background:var(--bg);padding:10px 0;
+      border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;font-size:13px}
+ .bar button{background:var(--panel);color:var(--fg);border:1px solid var(--line);
+      border-radius:6px;padding:5px 12px;cursor:pointer;font:inherit}
+ .bar input{accent-color:var(--blue)}
+ table.sum{border-collapse:collapse;margin:14px 0;font-size:13px}
+ .sum th,.sum td{text-align:left;padding:6px 16px 6px 0;border-bottom:1px solid var(--line)}
+ .sum th{color:var(--dim);font-weight:500}
+ .crit{background:var(--panel);border-radius:8px;padding:12px 16px;font-size:13px;
+       color:#b6bfcc;max-width:920px}
+ .crit b{color:var(--fg)}
+ .c{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;
+    display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:18px}
+ .hd{grid-column:1/-1;display:flex;gap:12px;align-items:baseline}
+ .n{color:var(--dim);font-variant-numeric:tabular-nums}.s{font-weight:600}
+ .st{margin-left:auto;font-size:12px;padding:2px 9px;border-radius:99px}
+ .st.ok{background:#12331f;color:var(--ok)}.st.bad{background:#3a1418;color:var(--bad)}
+ canvas.live{width:100%;max-width:400px;aspect-ratio:1;background:var(--panel);
+             border-radius:8px;display:block;cursor:zoom-in}
+ .cap{color:var(--dim);font-size:11px;padding-top:4px}
+ .strip{display:flex;gap:6px;margin-top:10px}
+ .strip img{width:76px;height:76px;image-rendering:pixelated;background:var(--panel);border-radius:4px}
+ .m{margin-top:10px;font-size:12px;display:flex;gap:16px;flex-wrap:wrap;
+    font-variant-numeric:tabular-nums;color:var(--dim)}
+ .m b{color:var(--fg)}.m .p{color:var(--ok)}.m .f2{color:var(--bad)}
+ pre{background:var(--panel);padding:12px;border-radius:6px;overflow:auto;
+     font:12px/1.45 ui-monospace,Menlo,monospace;margin:0;max-height:440px}
+ .log{color:var(--bad);font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;
+      background:#1b1012;padding:10px;border-radius:6px;margin-top:10px}
+ dialog{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px}
+ dialog canvas{width:min(80vw,80vh);aspect-ratio:1;display:block;border-radius:8px}
+ a{color:var(--blue)}
+</style>
+<h1>003-oneshot-opus-5</h1>
+<p class=meta>model <b>claude-opus-5</b> &middot; repo <b>0ce10d7</b> &middot; generation cost <b>$2.5464762000000003</b></p>
+<div class=bar>
+  <button id=pp>Pause</button>
+  <label>speed <input id=sp type=range min=0.1 max=3 step=0.1 value=1></label>
+  <span id=spv class=n>1.0x</span>
+  <button id=rw>Restart clocks</button>
+  <span class=n id=clock></span>
+</div>
+<div class=crit style="margin-top:14px"><b>Acceptable</b> needs all three:
+<b>1.</b> not blank &nbsp; <b>2.</b> it moves &nbsp; <b>3.</b> a stranger would match it to the words.<br>
+<b>flat</b> and <b>motion</b> below are the deterministic prefilter from contract §4, computed from
+the captured frames: flat is luminance stddev on t1 (fails under 0.02), motion is mean absolute
+t0/t2 difference (fails under 0.01). Those settle 1 and 2. <b>Criterion 3 is yours</b>, which is
+what the live canvas is for.<br>
+Count per prompt, then pick prompts by how badly they fail: <b>5-6 of 6 means reject the prompt</b>
+(the model does not need us), <b>~2 of 6 is the demo target</b>, 0 of 6 will not converge.</div>
+<table class=sum><tr><th>prompt</th><th>ok</th><th>compile_error</th><th>timeout</th><th>other</th></tr>
+<tr><td><a href=#aurora>aurora</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#glass>glass</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#ink>ink</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#jelly>jelly</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#metal>metal</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#oil>oil</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#rain>rain</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td><a href=#wool>wool</a></td><td>6</td><td>0</td><td>0</td><td>0</td></tr>
+</table><div id=body></div>
+<script type="application/json" id="data">[
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 0,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.12;\r\n\r\n    // ridge silhouette\r\n    float r=0.18+0.055*noise(vec2(uv.x*3.5,0.0))+0.025*noise(vec2(uv.x*8.0,1.7));\r\n    float inRidge=step(uv.y,r);\r\n\r\n    // domain-warped aurora\r\n    vec2 q=uv*vec2(2.5,1.5)+vec2(t,0.0);\r\n    vec2 warp=vec2(fbm(q+vec2(0.0,t)),fbm(q+vec2(3.2,1.7)));\r\n    float raw=fbm(q+1.6*warp);\r\n\r\n    // band centred at 0.58\r\n    float band=exp(-pow((uv.y-0.58)/0.18,2.0)*4.0)*(1.0-inRidge);\r\n    float a=clamp(raw*1.8-0.45,0.0,1.0)*band;\r\n\r\n    // green->violet by intensity\r\n    vec3 green=vec3(0.05,0.85,0.25);\r\n    vec3 violet=vec3(0.55,0.05,0.90);\r\n    vec3 aurora=mix(green,violet,clamp(a*1.4-0.1,0.0,1.0))*a*1.2;\r\n\r\n    vec3 sky=mix(vec3(0.00,0.015,0.03),vec3(0.01,0.04,0.035),uv.y);\r\n    vec3 col=mix(sky+clamp(aurora,0.0,1.0),vec3(0.015,0.015,0.02),inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 1,
+    "strategy": "layered sine curtains",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.10;\r\n\r\n    // ridge\r\n    float r=0.175+0.06*noise(vec2(uv.x*4.0,0.0))+0.03*noise(vec2(uv.x*9.5,2.0));\r\n    float inRidge=step(uv.y,r);\r\n\r\n    // six sine curtains summed\r\n    float aurora=0.0;\r\n    for(int i=0;i<6;i++){\r\n        float fi=float(i);\r\n        float freq=2.5+fi*1.3;\r\n        float speed=0.08+fi*0.03;\r\n        float phase=fi*1.17;\r\n        float amp=0.18-fi*0.02;\r\n        aurora+=amp*sin(uv.x*freq*6.2832+t*speed*6.2832+phase)*0.5+0.5;\r\n    }\r\n    aurora/=6.0;\r\n\r\n    // vertical envelope\r\n    float env=exp(-pow((uv.y-0.60)/0.20,2.0)*3.5)*(1.0-inRidge);\r\n    // slow breathe\r\n    float breathe=0.7+0.3*sin(t*0.8);\r\n    aurora=clamp(aurora*breathe,0.0,1.0)*env;\r\n\r\n    // hue: low aurora=green, high=violet\r\n    vec3 col0=vec3(0.04,0.80,0.22);\r\n    vec3 col1=vec3(0.50,0.05,0.88);\r\n    vec3 aCol=mix(col0,col1,aurora)*aurora*1.3;\r\n\r\n    vec3 sky=mix(vec3(0.0,0.01,0.025),vec3(0.01,0.035,0.03),uv.y);\r\n    vec3 col=mix(sky+clamp(aCol,0.0,1.0),vec3(0.012,0.012,0.018),inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 2,
+    "strategy": "sdf ridge glow",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\n// ridge height field\r\nfloat ridgeH(float x){\r\n    return 0.17+0.07*noise(vec2(x*3.8,0.0))+0.035*noise(vec2(x*8.2,1.4))+0.015*noise(vec2(x*17.0,3.0));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.11;\r\n\r\n    float rh=ridgeH(uv.x);\r\n    // signed dist above ridge (positive=sky)\r\n    float sd=uv.y-rh;\r\n    float inRidge=step(sd,0.0);\r\n\r\n    // aurora: fbm curtain that drifts\r\n    vec2 ap=vec2(uv.x*2.2+t*0.3,uv.y*4.0);\r\n    float raw=fbm(ap+vec2(fbm(ap)*0.8));\r\n    raw=clamp(raw*1.7-0.35,0.0,1.0);\r\n\r\n    // height envelope above ridge\r\n    float lift=clamp(sd/0.08,0.0,1.0); // rise from ridge\r\n    float peak=exp(-pow((uv.y-0.62)/0.17,2.0)*4.0);\r\n    float env=lift*peak*(1.0-inRidge);\r\n\r\n    float a=raw*env;\r\n\r\n    vec3 green=vec3(0.06,0.88,0.28);\r\n    vec3 violet=vec3(0.52,0.04,0.85);\r\n    vec3 aCol=mix(green,violet,clamp(raw*1.3,0.0,1.0))*a*1.4;\r\n\r\n    // subtle ridge glow at base of aurora\r\n    float glow=exp(-sd*18.0)*clamp(raw*0.6,0.0,1.0)*(1.0-inRidge);\r\n    aCol+=vec3(0.02,0.12,0.06)*glow;\r\n\r\n    vec3 sky=mix(vec3(0.0,0.01,0.022),vec3(0.008,0.032,0.028),uv.y);\r\n    vec3 ridgeCol=vec3(0.010,0.010,0.016)+vec3(0.0,0.03,0.02)*exp(-(-sd)*8.0);\r\n    vec3 col=mix(sky+clamp(aCol,0.0,1.0),ridgeCol,inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 3,
+    "strategy": "voronoi aurora cells",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec2 hash22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\n\r\nfloat voronoi(vec2 p,float t){\r\n    vec2 id=floor(p);\r\n    vec2 fr=fract(p);\r\n    float md=8.0;\r\n    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){\r\n        vec2 o=vec2(float(x),float(y));\r\n        vec2 r=o-fr+hash22(id+o)*0.7+0.3*sin(t+hash22(id+o)*6.28);\r\n        md=min(md,dot(r,r));\r\n    }\r\n    return sqrt(md);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.08;\r\n\r\n    float rh=0.18+0.06*noise(vec2(uv.x*4.0,0.0))+0.03*noise(vec2(uv.x*9.0,1.5));\r\n    float inRidge=step(uv.y,rh);\r\n\r\n    // stretched voronoi to look like aurora patches\r\n    vec2 vp=vec2(uv.x*3.5+t*0.4,(uv.y-0.55)*6.0);\r\n    float v=voronoi(vp,t);\r\n    // soft cell interior glow\r\n    float cell=exp(-v*v*2.5);\r\n    // add noise variation\r\n    float nvar=noise(vp*0.7+vec2(t*0.2,0.0));\r\n    float a=clamp(cell*1.2+nvar*0.3-0.2,0.0,1.0);\r\n\r\n    float env=exp(-pow((uv.y-0.60)/0.19,2.0)*3.5)*(1.0-inRidge);\r\n    a*=env;\r\n\r\n    // green core, violet fringe\r\n    vec3 green=vec3(0.05,0.82,0.25);\r\n    vec3 violet=vec3(0.48,0.04,0.82);\r\n    vec3 aCol=mix(violet,green,clamp(cell*1.5-0.2,0.0,1.0))*a*1.3;\r\n\r\n    vec3 sky=mix(vec3(0.0,0.01,0.022),vec3(0.008,0.030,0.026),uv.y);\r\n    vec3 col=mix(sky+clamp(aCol,0.0,1.0),vec3(0.012,0.012,0.018),inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 4,
+    "strategy": "raymarched volume slab",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\n// density in the aurora slab; p.y is altitude 0..1\r\nfloat density(vec3 p,float t){\r\n    vec2 xz=vec2(p.x*1.8+t*0.25,p.z*0.9);\r\n    float d=fbm(xz)*fbm(xz+vec2(1.3,t*0.15));\r\n    // vertical gaussian within slab\r\n    d*=exp(-pow((p.y-0.62)/0.13,2.0)*5.0);\r\n    return clamp(d*2.2-0.3,0.0,1.0);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.10;\r\n\r\n    // ridge\r\n    float rh=0.175+0.06*noise(vec2(uv.x*4.0,0.0))+0.028*noise(vec2(uv.x*9.0,1.6));\r\n    float inRidge=step(uv.y,rh);\r\n\r\n    // camera ray: origin at uv on near plane, direction mostly +z with slight up tilt\r\n    vec3 ro=vec3(uv.x-0.5,uv.y,0.0);\r\n    vec3 rd=normalize(vec3(0.0,0.05,1.0));\r\n\r\n    // march through slab 0.45<y<0.80\r\n    float transmit=1.0;\r\n    vec3 scattered=vec3(0.0);\r\n    float stepSize=1.0/28.0;\r\n    for(int s=0;s<28;s++){\r\n        float z=float(s)*stepSize*2.0;\r\n        // reconstruct world y from ro+rd*z\r\n        float wy=ro.y+rd.y*z;\r\n        if(wy<0.45||wy>0.85){continue;}\r\n        vec3 p=vec3(ro.x+rd.x*z,wy,z);\r\n        float d=density(p,t)*stepSize*3.5;\r\n        float di=clamp(d,0.0,1.0);\r\n        // color by density: green at low, violet at high\r\n        vec3 green=vec3(0.05,0.88,0.28);\r\n        vec3 violet=vec3(0.50,0.04,0.86);\r\n        vec3 lc=mix(green,violet,clamp(di*2.0,0.0,1.0));\r\n        scattered+=transmit*di*lc;\r\n        transmit*=1.0-di*0.45;\r\n        if(transmit<0.02){break;}\r\n    }\r\n    scattered=clamp(scattered,0.0,1.0);\r\n\r\n    vec3 sky=mix(vec3(0.0,0.01,0.022),vec3(0.008,0.030,0.026),uv.y);\r\n    vec3 col=mix(sky+scattered,vec3(0.012,0.012,0.018),inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "aurora",
+    "prompt": "aurora over a dark ridge, slow, green to violet",
+    "i": 5,
+    "strategy": "polar ripple curtains",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime*0.09;\r\n\r\n    // ridge\r\n    float rh=0.17+0.065*noise(vec2(uv.x*3.8,0.0))+0.032*noise(vec2(uv.x*8.5,1.3));\r\n    float inRidge=step(uv.y,rh);\r\n\r\n    // map sky to polar-ish: origin at top-centre\r\n    vec2 sky_p=vec2((uv.x-0.5)*2.2, uv.y-1.0);\r\n    float ang=atan(sky_p.x,sky_p.y); // -pi..pi\r\n    float rad=length(sky_p);\r\n\r\n    // curtains along angle axis, animated\r\n    float curtain=0.0;\r\n    for(int i=0;i<5;i++){\r\n        float fi=float(i);\r\n        float freq=3.0+fi*2.0;\r\n        float spd=0.06+fi*0.02;\r\n        curtain+=sin(ang*freq+t*spd*6.2832+fi*0.9)*0.5+0.5;\r\n    }\r\n    curtain/=5.0;\r\n\r\n    // modulate with fbm for organic structure\r\n    vec2 fp=vec2(ang*1.2+t*0.3,rad*2.5);\r\n    float mod=fbm(fp);\r\n    curtain=clamp(curtain*0.6+mod*0.7-0.25,0.0,1.0);\r\n\r\n    // radial envelope: aurora ring at certain radius\r\n    float renv=exp(-pow((rad-0.55)/0.20,2.0)*4.0);\r\n    // also reject below ridge\r\n    float envFull=renv*(1.0-inRidge)*clamp(1.0-uv.y*0.5,0.0,1.0);\r\n    float a=curtain*envFull;\r\n\r\n    // green->violet by angle variation\r\n    float hue=clamp(sin(ang*2.0+t*0.4)*0.5+0.5,0.0,1.0);\r\n    vec3 green=vec3(0.05,0.85,0.25);\r\n    vec3 violet=vec3(0.50,0.05,0.88);\r\n    vec3 aCol=mix(green,violet,hue)*a*1.3;\r\n\r\n    vec3 skyCol=mix(vec3(0.0,0.01,0.022),vec3(0.008,0.030,0.026),uv.y);\r\n    vec3 col=mix(skyCol+clamp(aCol,0.0,1.0),vec3(0.012,0.012,0.018),inRidge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 0,
+    "strategy": "hex sdf mosaic",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nfloat sdHex(vec2 p,float r){vec2 k=vec2(-0.866025,0.5);p=abs(p);p-=2.0*min(dot(k,p),0.0)*k;p-=vec2(clamp(p.x,-0.57735*r,0.57735*r),r);return length(p)*sign(p.y);}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  vec2 sunPos=vec2(cos(iTime*0.35)*0.7,sin(iTime*0.18)*0.25+0.15);\r\n  float sc=5.5;\r\n  vec2 gp=uv*sc;\r\n  vec2 hr=vec2(1.0,1.7320508);\r\n  vec2 hp=floor(gp/hr+0.5)*hr;\r\n  vec2 off=hr*0.5;\r\n  vec2 hp2=floor((gp-off)/hr+0.5)*hr+off;\r\n  vec2 hc=(length(gp-hp)<length(gp-hp2))?hp:hp2;\r\n  vec2 local=gp-hc;\r\n  float d=sdHex(local,0.44);\r\n  float lead=smoothstep(0.0,0.04,d);\r\n  float id=hash21(hc);\r\n  vec3 gc=palette(id,vec3(0.35,0.25,0.1),vec3(0.45,0.4,0.35),vec3(0.9,1.0,0.5),vec3(0.0,0.25,0.6));\r\n  gc=clamp(gc,0.0,1.0);\r\n  float sd=length(uv-sunPos);\r\n  float sl=exp(-sd*sd*1.8);\r\n  float edge=abs(d);\r\n  float scatter=exp(-edge*edge*80.0)*sl*0.6;\r\n  vec3 sun=vec3(1.0,0.82,0.35);\r\n  vec3 col=gc*(0.25+0.75*sl)*sun*1.5+scatter*sun;\r\n  col=clamp(col,0.0,1.0);\r\n  col=mix(vec3(0.04,0.03,0.02),col,lead);\r\n  fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 1,
+    "strategy": "voronoi irregular panes",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec2 hash22(vec2 p){return vec2(hash21(p),hash21(p+vec2(7.31,3.71)));}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  vec2 sunPos=vec2(sin(iTime*0.4)*0.65,cos(iTime*0.22)*0.2+0.1);\r\n  float sc=5.0;\r\n  vec2 p=uv*sc;\r\n  vec2 ip=floor(p);\r\n  float minD=1e9,minD2=1e9;\r\n  vec2 minC=vec2(0.0);\r\n  for(int y=-2;y<=2;y++){\r\n    for(int x=-2;x<=2;x++){\r\n      vec2 nb=ip+vec2(float(x),float(y));\r\n      vec2 rp=hash22(nb)+vec2(nb);\r\n      float d=length(p-rp);\r\n      if(d<minD){minD2=minD;minD=d;minC=nb;}\r\n      else if(d<minD2){minD2=d;}\r\n    }\r\n  }\r\n  float border=minD2-minD;\r\n  float lead=smoothstep(0.0,0.06,border);\r\n  float id=hash21(minC);\r\n  vec3 gc=palette(id,vec3(0.3,0.2,0.15),vec3(0.5,0.45,0.3),vec3(1.0,0.9,0.5),vec3(0.1,0.3,0.65));\r\n  gc=clamp(gc,0.0,1.0);\r\n  float sd=length(uv-sunPos);\r\n  float sl=exp(-sd*sd*1.5);\r\n  float rim=exp(-border*border*60.0)*sl*0.8;\r\n  vec3 sun=vec3(1.0,0.78,0.3);\r\n  vec3 col=gc*(0.2+0.8*sl)*sun*1.4+rim*sun;\r\n  col=clamp(col,0.0,1.0);\r\n  col=mix(vec3(0.03,0.02,0.02),col,lead);\r\n  fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 2,
+    "strategy": "polar rose window",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  float sunAngle=iTime*0.3;\r\n  vec2 sunDir=vec2(cos(sunAngle),sin(sunAngle));\r\n  vec2 sunPos=sunDir*0.55;\r\n  float r=length(uv);\r\n  float a=atan(uv.y,uv.x);\r\n  float sl=exp(-length(uv-sunPos)*length(uv-sunPos)*2.2);\r\n  vec3 sun=vec3(1.0,0.82,0.3);\r\n  int RINGS=5;\r\n  float ringW=0.09;\r\n  float ringGap=0.04;\r\n  float inRing=0.0;\r\n  float ringId=0.0;\r\n  for(int i=0;i<5;i++){\r\n    float ri=float(i);\r\n    float r0=ri*(ringW+ringGap)+0.08;\r\n    float r1=r0+ringW;\r\n    if(r>r0&&r<r1){inRing=1.0;ringId=ri;}\r\n  }\r\n  int SPOKES=12;\r\n  float spokeW=0.018;\r\n  float minSpokeDist=1e9;\r\n  for(int k=0;k<12;k++){\r\n    float sa=float(k)*3.14159/6.0;\r\n    float da=mod(abs(a-sa),3.14159);\r\n    da=min(da,3.14159-da);\r\n    float cd=r*sin(da);\r\n    minSpokeDist=min(minSpokeDist,cd);\r\n  }\r\n  float spokeLead=smoothstep(0.0,0.01,minSpokeDist-spokeW);\r\n  float ringLead=1.0;\r\n  if(inRing>0.5){\r\n    float ri=ringId;\r\n    float r0=ri*(ringW+ringGap)+0.08;\r\n    float r1=r0+ringW;\r\n    float border=min(r-r0,r1-r);\r\n    ringLead=smoothstep(0.0,0.01,border-0.008);\r\n  }\r\n  float lead=min(spokeLead,ringLead);\r\n  float petals=float(SPOKES);\r\n  float petal=0.5+0.5*cos(petals*a+iTime*0.5);\r\n  float id=hash21(vec2(floor(petals*a/6.28318+0.5),ringId));\r\n  vec3 gc=palette(id+petal*0.1,vec3(0.3,0.2,0.1),vec3(0.5,0.4,0.3),vec3(1.0,0.8,0.5),vec3(0.05,0.3,0.6));\r\n  gc=clamp(gc,0.0,1.0);\r\n  float outsideAll=step(0.95,r);\r\n  vec3 col=gc*(0.15+0.85*sl)*sun*1.5;\r\n  col=clamp(col,0.0,1.0);\r\n  col=mix(vec3(0.03,0.02,0.02),col,lead);\r\n  col=mix(col,vec3(0.08,0.06,0.04),outsideAll);\r\n  fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 3,
+    "strategy": "fbm caustic floor",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  vec2 sunPos=vec2(cos(iTime*0.38)*0.7,0.6+sin(iTime*0.22)*0.15);\r\n  float sunH=0.4+0.3*sin(iTime*0.22);\r\n  vec2 floorUV=uv+vec2(0.0,0.5);\r\n  vec2 warpedA=floorUV+0.25*vec2(fbm(floorUV*3.0+iTime*0.1),fbm(floorUV*3.0+vec2(5.2,1.3)+iTime*0.1));\r\n  vec2 warpedB=warpedA+0.2*vec2(fbm(warpedA*4.0-iTime*0.15),fbm(warpedA*4.0+vec2(1.7,9.2)-iTime*0.15));\r\n  float caustic=fbm(warpedB*6.0+iTime*0.2);\r\n  caustic=caustic*caustic*2.0;\r\n  float sx=(uv.x-sunPos.x);\r\n  float shadow=exp(-sx*sx*3.0)*exp(-max(0.0,sunPos.y-uv.y)*4.0);\r\n  vec2 colorUV=uv*4.0;\r\n  float hue=fbm(colorUV+iTime*0.05);\r\n  vec3 gc=palette(hue,vec3(0.3,0.15,0.05),vec3(0.5,0.45,0.3),vec3(1.0,0.7,0.4),vec3(0.0,0.2,0.6));\r\n  gc=clamp(gc,0.0,1.0);\r\n  vec3 stone=vec3(0.45,0.38,0.3);\r\n  vec3 lit=stone+caustic*gc*shadow*vec3(1.0,0.85,0.4)*1.2;\r\n  lit=clamp(lit,0.0,1.0);\r\n  fragColor=vec4(lit,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 4,
+    "strategy": "raymarched god rays",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nfloat windowMask(vec2 uv){\r\n  float grid=8.0;\r\n  vec2 cell=fract(uv*grid);\r\n  vec2 id=floor(uv*grid);\r\n  float lead=step(0.06,cell.x)*step(0.06,cell.y)*step(cell.x,0.94)*step(cell.y,0.94);\r\n  float h=hash21(id);\r\n  return lead*step(0.15,h);\r\n}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  vec2 sunPos=vec2(cos(iTime*0.35)*0.7,sin(iTime*0.2)*0.25+0.3);\r\n  vec3 rayCol=vec3(0.0);\r\n  int STEPS=40;\r\n  for(int i=0;i<40;i++){\r\n    float t=float(i)/39.0;\r\n    vec2 samplePos=mix(uv,sunPos,t);\r\n    float m=windowMask(samplePos+vec2(0.5));\r\n    float hue=hash21(floor(samplePos*8.0+vec2(0.5)));\r\n    vec3 gc=palette(hue,vec3(0.3,0.2,0.1),vec3(0.5,0.4,0.3),vec3(1.0,0.8,0.5),vec3(0.05,0.3,0.6));\r\n    gc=clamp(gc,0.0,1.0);\r\n    float att=exp(-t*t*1.5)*(1.0-t)*0.06;\r\n    rayCol+=m*gc*att;\r\n  }\r\n  rayCol=clamp(rayCol,0.0,1.0);\r\n  float haze=exp(-length(uv-sunPos)*3.0)*0.18;\r\n  vec3 sun=vec3(1.0,0.85,0.4);\r\n  vec3 col=rayCol+haze*sun;\r\n  vec3 bg=vec3(0.05,0.04,0.06);\r\n  col=bg+col;\r\n  col=clamp(col,0.0,1.0);\r\n  fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "glass",
+    "prompt": "stained glass window with the sun moving behind it",
+    "i": 5,
+    "strategy": "domain warp refraction",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nfloat leadLine(vec2 uv,float grid){\r\n  vec2 cell=fract(uv*grid);\r\n  float bx=min(cell.x,1.0-cell.x);\r\n  float by=min(cell.y,1.0-cell.y);\r\n  float b=min(bx,by);\r\n  return smoothstep(0.0,0.05,b);\r\n}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n  vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n  vec2 sunPos=vec2(cos(iTime*0.4)*0.6,sin(iTime*0.25)*0.2+0.1);\r\n  vec2 warp=vec2(\r\n    fbm(uv*4.0+vec2(0.0,iTime*0.08)),\r\n    fbm(uv*4.0+vec2(3.7,iTime*0.08))\r\n  );\r\n  vec2 wuv=uv+0.06*warp;\r\n  vec2 warp2=vec2(\r\n    fbm(wuv*6.0+vec2(1.7,-iTime*0.06)),\r\n    fbm(wuv*6.0+vec2(8.3,-iTime*0.06))\r\n  );\r\n  vec2 fuv=wuv+0.04*warp2;\r\n  float grid=6.0;\r\n  vec2 cellId=floor(fuv*grid);\r\n  float id=hash21(cellId);\r\n  vec3 gc=palette(id,vec3(0.3,0.18,0.08),vec3(0.5,0.42,0.3),vec3(1.0,0.75,0.45),vec3(0.0,0.25,0.62));\r\n  gc=clamp(gc,0.0,1.0);\r\n  float lead=leadLine(fuv,grid);\r\n  float sd=length(uv-sunPos);\r\n  float sl=exp(-sd*sd*1.6);\r\n  float specular=fbm(fuv*8.0+iTime*0.12);\r\n  specular=pow(clamp(specular,0.0,1.0),3.0)*sl*0.4;\r\n  vec3 sun=vec3(1.0,0.82,0.35);\r\n  vec3 col=gc*(0.2+0.8*sl)*sun*1.4+specular*sun;\r\n  col=clamp(col,0.0,1.0);\r\n  col=mix(vec3(0.04,0.03,0.02),col,lead);\r\n  fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 0,
+    "strategy": "radial sdf diffusion",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n\r\n    // drop hits at t=0, spreads slowly\r\n    float t = iTime * 0.18;\r\n    float radius = t * 0.55;\r\n    float dist = length(uv);\r\n\r\n    // perturb boundary with noise so it looks fibrous\r\n    float angle = atan(uv.y, uv.x);\r\n    float boundary = radius + 0.04 * noise(vec2(angle * 3.0, t * 4.0));\r\n\r\n    // ink density: full inside, feathered edge\r\n    float ink = 1.0 - smoothstep(boundary - 0.015, boundary + 0.03, dist);\r\n\r\n    // secondary wispy tendrils\r\n    float tendrils = noise(uv * 14.0 + vec2(0.0, t * 0.5));\r\n    float tendrilMask = smoothstep(boundary + 0.04, boundary - 0.01, dist) *\r\n                        smoothstep(0.0, boundary * 0.7, dist);\r\n    ink = max(ink, tendrils * tendrilMask * 0.6);\r\n\r\n    ink = clamp(ink, 0.0, 1.0);\r\n    vec3 col = mix(vec3(1.0), vec3(0.04, 0.04, 0.07), ink);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0;\r\n    float a = 0.5;\r\n    for (int i = 0; i < 5; i++) {\r\n        v += a * noise(p);\r\n        p *= 2.0;\r\n        a *= 0.5;\r\n    }\r\n    return v;\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n\r\n    float t = iTime * 0.12;\r\n    float spread = clamp(t * 0.9, 0.0, 0.55);\r\n\r\n    // two layers of domain warp — gives that feathery capillary look\r\n    vec2 q = vec2(fbm(uv * 3.0 + vec2(0.0, t)),\r\n                  fbm(uv * 3.0 + vec2(5.2, 1.3 + t)));\r\n    vec2 r = vec2(fbm(uv * 3.0 + 4.0 * q + vec2(1.7, 9.2)),\r\n                  fbm(uv * 3.0 + 4.0 * q + vec2(8.3, 2.8 + t * 0.5)));\r\n\r\n    float f = fbm(uv * 2.5 + 4.0 * r);\r\n\r\n    // ink is concentrated near origin; warp pulls it outward over time\r\n    float d = length(uv) - spread * (0.7 + 0.5 * f);\r\n    float ink = 1.0 - smoothstep(-0.02, 0.08, d);\r\n    ink = clamp(ink, 0.0, 1.0);\r\n\r\n    vec3 col = mix(vec3(1.0), vec3(0.03, 0.03, 0.06), ink);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 2,
+    "strategy": "voronoi cell bleed",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nvec2 hash22(vec2 p) {\r\n    return vec2(hash21(p), hash21(p + vec2(31.41, 27.18)));\r\n}\r\n\r\n// returns distance to nearest voronoi cell\r\nfloat voronoi(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    float minD = 9.0;\r\n    for (int y = -1; y <= 1; y++) {\r\n        for (int x = -1; x <= 1; x++) {\r\n            vec2 neighbor = vec2(float(x), float(y));\r\n            vec2 point = hash22(i + neighbor);\r\n            vec2 diff = neighbor + point - f;\r\n            float d = dot(diff, diff);\r\n            minD = min(minD, d);\r\n        }\r\n    }\r\n    return sqrt(minD);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n\r\n    float t = iTime * 0.15;\r\n    float radius = clamp(t * 0.6, 0.0, 0.6);\r\n\r\n    // voronoi at moderate scale gives cracked/cellular bleed pattern\r\n    float v = voronoi(uv * 7.0 + vec2(t * 0.2));\r\n\r\n    // animate cells expanding from center\r\n    float d = length(uv);\r\n    // ink front: cells inside radius are filled, edge is voronoi-modulated\r\n    float front = radius - d + 0.05 * (1.0 - v);\r\n    float ink = smoothstep(-0.01, 0.04, front);\r\n\r\n    // darker in center, slight rim effect\r\n    float depthFade = 1.0 - 0.3 * smoothstep(0.0, radius * 0.8, d);\r\n    ink *= depthFade;\r\n    ink = clamp(ink, 0.0, 1.0);\r\n\r\n    vec3 col = mix(vec3(1.0), vec3(0.03, 0.03, 0.05), ink);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 3,
+    "strategy": "layered noise rings",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n\r\n    float t = iTime * 0.2;\r\n    float r = length(uv);\r\n    float a = atan(uv.y, uv.x);\r\n\r\n    // polar noise to perturb radius\r\n    float angularNoise = noise(vec2(a * 2.5, t * 0.8)) * 0.5\r\n                       + noise(vec2(a * 5.0 + 1.3, t * 1.2)) * 0.25;\r\n\r\n    // three concentric expanding rings of ink\r\n    float ink = 0.0;\r\n    for (int k = 0; k < 3; k++) {\r\n        float kf = float(k);\r\n        float phase = kf * 0.18 + 0.05;\r\n        float front = clamp(t - phase, 0.0, 0.5) * 0.55;\r\n        float rPerturbed = r - angularNoise * 0.04 * (1.0 + kf);\r\n        float ring = 1.0 - smoothstep(front - 0.01, front + 0.025, rPerturbed);\r\n        // hollow out inner rings so only the outermost edge bleeds\r\n        float hole = smoothstep(front * 0.4 - 0.02, front * 0.4 + 0.02, rPerturbed);\r\n        ink = max(ink, ring * mix(1.0, 0.15, hole) * (1.0 - kf * 0.25));\r\n    }\r\n\r\n    // dense core\r\n    float core = 1.0 - smoothstep(0.0, 0.04 + t * 0.05, r);\r\n    ink = max(ink, core);\r\n    ink = clamp(ink, 0.0, 1.0);\r\n\r\n    vec3 col = mix(vec3(1.0), vec3(0.03, 0.03, 0.06), ink);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 4,
+    "strategy": "raymarched ink volume",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0; float a = 0.5;\r\n    for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; }\r\n    return v;\r\n}\r\n\r\n// density of ink cloud at 3D point\r\nfloat density(vec3 p, float t) {\r\n    float spread = clamp(t * 0.5, 0.001, 0.55);\r\n    // flatten drop onto paper: squash Y\r\n    vec3 q = p * vec3(1.0, 0.4, 1.0);\r\n    float d = length(q) / spread;\r\n    float baseShape = 1.0 - smoothstep(0.7, 1.0, d);\r\n    // wispy surface noise\r\n    float n = fbm(p.xz * 6.0 + vec2(t * 0.3, 0.0)) * 0.4;\r\n    return clamp(baseShape + n * (1.0 - d * 0.5), 0.0, 1.0);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime * 0.22;\r\n\r\n    // orthographic top-down view\r\n    vec3 ro = vec3(uv.x, 1.0, uv.y);\r\n    vec3 rd = vec3(0.0, -1.0, 0.0);\r\n\r\n    float acc = 0.0;\r\n    float step = 0.04;\r\n    for (int i = 0; i < 48; i++) {\r\n        vec3 p = ro + rd * (float(i) * step);\r\n        acc += density(p, t) * step * 3.5;\r\n        if (acc >= 1.0) break;\r\n    }\r\n    acc = clamp(acc, 0.0, 1.0);\r\n\r\n    vec3 col = mix(vec3(1.0), vec3(0.04, 0.04, 0.07), acc);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "ink",
+    "prompt": "ink dropping into water, slow, black on paper white",
+    "i": 5,
+    "strategy": "polar capillary branching",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\n// thin capillary strand: distance to an angular-radial curve\r\nfloat strand(vec2 uv, float angleOffset, float t) {\r\n    float r = length(uv);\r\n    float a = atan(uv.y, uv.x) - angleOffset;\r\n    // strand travels radially, wiggles in angle over time\r\n    float maxR = clamp(t * 0.55, 0.0, 0.52);\r\n    float reach = smoothstep(maxR, maxR - 0.05, r); // only exists inside front\r\n    // wobble\r\n    float wobble = 0.18 * noise(vec2(r * 8.0, t * 1.5 + angleOffset));\r\n    float aDist = abs(mod(a + 3.14159, 6.28318) - 3.14159) - wobble;\r\n    float strandWidth = 0.025 * (1.0 - r / 0.55);\r\n    return reach * (1.0 - smoothstep(0.0, strandWidth, aDist));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime * 0.18;\r\n\r\n    // solid core\r\n    float r = length(uv);\r\n    float core = 1.0 - smoothstep(0.0, 0.06 + t * 0.08, r);\r\n\r\n    // 8 capillary strands at irregular angles\r\n    float branches = 0.0;\r\n    for (int k = 0; k < 8; k++) {\r\n        float kf = float(k);\r\n        float base = kf * 0.7854; // ~pi/4\r\n        float jitter = (hash21(vec2(kf, 17.3)) - 0.5) * 0.6;\r\n        branches = max(branches, strand(uv, base + jitter, t));\r\n    }\r\n\r\n    // diffuse halo at the front\r\n    float spread = clamp(t * 0.55, 0.0, 0.52);\r\n    float halo = (1.0 - smoothstep(spread - 0.04, spread + 0.01, r))\r\n               * noise(uv * 12.0 + vec2(t)) * 0.35;\r\n\r\n    float ink = clamp(core + branches + halo, 0.0, 1.0);\r\n    vec3 col = mix(vec3(1.0), vec3(0.03, 0.03, 0.06), ink);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 0,
+    "strategy": "radial SDF bell",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime;\r\n    // jellyfish drifts gently\r\n    vec2 jpos = vec2(sin(t * 0.23) * 0.12, 0.05 + sin(t * 0.37) * 0.06);\r\n    vec2 p = uv - jpos;\r\n    float angle = atan(p.x, p.y); // 0 at top\r\n    float rad = length(p);\r\n    // pulsing bell radius, scalloped edge\r\n    float pulse = 0.5 + 0.5 * sin(t * 2.8);\r\n    float bellR = 0.16 * (1.0 + 0.10 * pulse);\r\n    float scallop = 0.012 * sin(angle * 8.0 + t * 1.5);\r\n    float edge = bellR + scallop;\r\n    // dome mask: upper hemisphere (p.y < bellR*0.4 means above equator in Y-down)\r\n    float inDome = smoothstep(edge + 0.008, edge - 0.008, rad) * step(p.y, bellR * 0.45);\r\n    // inner radial bands\r\n    float bands = 0.5 + 0.5 * sin(rad / max(edge, 0.001) * 12.0 - t * 3.0);\r\n    // tentacles hanging down from bell edge\r\n    float tents = 0.0;\r\n    for (int i = 0; i < 10; i++) {\r\n        float fi = float(i);\r\n        float ta = 6.28318 * fi / 10.0;\r\n        vec2 base = jpos + vec2(sin(ta), cos(ta)) * bellR * 0.85;\r\n        vec2 q = uv - base;\r\n        // sway and taper downward\r\n        float along = q.y; // positive = down\r\n        float sway = 0.018 * sin(along * 9.0 - t * 2.2 + fi * 1.3);\r\n        float td = abs(q.x - sway) - 0.0025;\r\n        float visible = smoothstep(0.0, 0.05, along) * smoothstep(0.28, 0.08, along);\r\n        tents += visible * smoothstep(0.007, 0.0, td);\r\n    }\r\n    tents = clamp(tents, 0.0, 1.0);\r\n    // deep water bg\r\n    vec3 bg = vec3(0.0, 0.015, 0.045) + 0.008 * noise(uv * 4.0 + t * 0.08) * vec3(0.0, 0.4, 1.0);\r\n    // bioluminescent palette: cyan/violet\r\n    vec3 jellCol = palette(rad / max(edge, 0.001) * 0.6 + t * 0.12,\r\n        vec3(0.05, 0.35, 0.55), vec3(0.05, 0.35, 0.35),\r\n        vec3(1.0, 0.8, 0.4), vec3(0.0, 0.25, 0.6));\r\n    float innerGlow = exp(-rad * rad / max(bellR * bellR * 0.25, 0.0001));\r\n    vec3 col = bg;\r\n    col += jellCol * inDome * (0.55 + 0.35 * bands);\r\n    col += vec3(0.3, 0.9, 1.0) * innerGlow * 0.35 * (0.7 + 0.3 * pulse);\r\n    col += vec3(0.1, 0.85, 0.9) * tents * 0.55;\r\n    // rim glow at bell edge\r\n    float rim = exp(-abs(rad - edge) * 80.0) * inDome;\r\n    col += vec3(0.4, 1.0, 0.9) * rim * 0.5;\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0; float a = 0.5;\r\n    for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; }\r\n    return v;\r\n}\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime;\r\n    // water caustic background via two-layer fbm warp\r\n    vec2 q = uv * 2.5;\r\n    vec2 warp1 = vec2(fbm(q + t * 0.15), fbm(q + vec2(5.2, 1.3) + t * 0.12));\r\n    vec2 warp2 = vec2(fbm(q + 4.0 * warp1 + t * 0.08), fbm(q + 4.0 * warp1 + vec2(1.7, 9.2) + t * 0.07));\r\n    float waterF = fbm(q + 4.0 * warp2);\r\n    vec3 waterCol = mix(vec3(0.0, 0.02, 0.07), vec3(0.0, 0.08, 0.18), waterF);\r\n    // jellyfish bell via warped radial field\r\n    float pulse = 0.5 + 0.5 * sin(t * 2.5);\r\n    vec2 jc = vec2(sin(t * 0.27) * 0.1, sin(t * 0.41) * 0.05);\r\n    vec2 pj = uv - jc;\r\n    // warp the distance field for organic shape\r\n    vec2 jq = pj * 4.0;\r\n    float jWarp = fbm(jq + t * 0.5) * 0.18;\r\n    float jrad = length(pj) + jWarp * 0.5;\r\n    float bellR = 0.18 * (1.0 + 0.12 * pulse);\r\n    // bell: soft disk with warped edge\r\n    float bell = smoothstep(bellR + 0.03, bellR - 0.03, jrad) * step(pj.y, bellR * 0.5);\r\n    // internal texture: warped fbm brightness\r\n    float jTex = fbm(pj * 8.0 + t * 0.4);\r\n    // trailing tentacles: domain warped vertical streaks\r\n    vec2 tq = uv - jc - vec2(0.0, bellR);\r\n    float txWarp = fbm(tq * 3.0 + vec2(0.0, t * 0.3)) * 0.1;\r\n    float tyWarp = fbm(tq * 3.0 + vec2(7.3, t * 0.25)) * 0.12;\r\n    vec2 tw = tq + vec2(txWarp, tyWarp);\r\n    // thin vertical streaks\r\n    float tStreak = 0.0;\r\n    for (int i = 0; i < 7; i++) {\r\n        float fi = float(i);\r\n        float ox = (fi - 3.0) * 0.04;\r\n        float streak = exp(-abs(tw.x - ox) * 55.0);\r\n        float fade = smoothstep(0.0, 0.04, tw.y) * smoothstep(0.35, 0.08, tw.y);\r\n        tStreak += streak * fade;\r\n    }\r\n    tStreak = clamp(tStreak, 0.0, 1.0);\r\n    float innerR = length(pj) / max(bellR, 0.001);\r\n    vec3 jellCol = palette(innerR * 0.7 + jTex * 0.3 + t * 0.1,\r\n        vec3(0.05, 0.4, 0.6), vec3(0.1, 0.35, 0.4),\r\n        vec3(0.8, 1.0, 0.5), vec3(0.1, 0.3, 0.65));\r\n    vec3 col = waterCol;\r\n    col += jellCol * bell * (0.5 + 0.4 * jTex);\r\n    col += vec3(0.2, 0.9, 1.0) * exp(-jrad * jrad / 0.04) * 0.3 * pulse;\r\n    col += vec3(0.15, 0.8, 0.85) * tStreak * 0.5;\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 2,
+    "strategy": "voronoi cell swarm",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nvec2 hash22(vec2 p) {\r\n    return vec2(hash21(p), hash21(p + vec2(3.7, 1.9)));\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n    // map to [-1.5, 1.5] x [-1.5, 1.5] Voronoi grid\r\n    vec2 gp = uv * 3.0 - 1.5;\r\n    float t = iTime;\r\n    // find 3 closest Voronoi cells in 4x3 grid\r\n    float minD1 = 9.9, minD2 = 9.9, minD3 = 9.9;\r\n    vec2 minCell = vec2(0.0);\r\n    float minId = 0.0;\r\n    for (int x = -2; x <= 2; x++) {\r\n        for (int y = -1; y <= 1; y++) {\r\n            vec2 cell = vec2(float(x), float(y));\r\n            vec2 h = hash22(cell);\r\n            // each jellyfish drifts on its own Lissajous\r\n            float phase = h.x * 6.28318;\r\n            vec2 drift = vec2(\r\n                h.x * 0.25 * sin(t * (0.3 + h.y * 0.3) + phase),\r\n                h.y * 0.15 * cos(t * (0.4 + h.x * 0.2) + phase + 1.0)\r\n            );\r\n            vec2 p = cell + h * 0.5 + drift - gp;\r\n            float d = length(p);\r\n            if (d < minD1) { minD3 = minD2; minD2 = minD1; minD1 = d; minCell = cell + h * 0.5 + drift; minId = hash21(cell); }\r\n            else if (d < minD2) { minD3 = minD2; minD2 = d; }\r\n            else if (d < minD3) { minD3 = d; }\r\n        }\r\n    }\r\n    // per-cell pulse driven by unique id\r\n    float cellPhase = minId * 6.28318;\r\n    float pulse = 0.5 + 0.5 * sin(t * 2.2 + cellPhase);\r\n    // radial distance from the nearest cell center\r\n    float r = length(gp - minCell);\r\n    float bellR = 0.28 * (1.0 + 0.1 * pulse);\r\n    // bell dome\r\n    float dome = smoothstep(bellR + 0.02, bellR - 0.02, r);\r\n    // edge ring\r\n    float ring = exp(-abs(r - bellR) * 35.0);\r\n    // cell border (deep water gaps)\r\n    float border = smoothstep(0.04, 0.12, minD2 - minD1);\r\n    // bioluminescent glow falls off with r\r\n    float glow = exp(-r * r / max(bellR * bellR * 0.3, 0.0001)) * pulse;\r\n    vec3 jellCol = palette(minId + r / max(bellR, 0.001) * 0.5 + t * 0.08,\r\n        vec3(0.04, 0.35, 0.55), vec3(0.08, 0.4, 0.4),\r\n        vec3(0.9, 0.7, 0.4), vec3(minId, 0.3, 0.6));\r\n    vec3 bgCol = vec3(0.0, 0.01, 0.04) + 0.005 * noise(uv * 5.0 + t * 0.06) * vec3(0.0, 0.3, 1.0);\r\n    vec3 col = bgCol;\r\n    col += jellCol * dome * border * 0.65;\r\n    col += vec3(0.3, 1.0, 0.95) * glow * border * 0.4;\r\n    col += vec3(0.5, 1.0, 0.9) * ring * border * 0.45;\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 3,
+    "strategy": "raymarched volume",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n// SDF: jellyfish bell = hemisphere capped cylinder warped by sine ripples\r\nfloat sdfBell(vec3 p, float pulse) {\r\n    float r = length(p.xz);\r\n    float ripple = 0.015 * sin(r * 18.0 - iTime * 4.0); // radial ripple\r\n    float bellH = 0.20 * (1.0 + 0.12 * pulse);\r\n    float bellR = 0.22 * (1.0 + 0.08 * pulse);\r\n    // dome: sphere clipped to y <= 0\r\n    float sphere = length(vec3(p.x, p.y - (-0.05), p.z)) - bellR + ripple;\r\n    float cap = p.y + 0.05; // y <= -0.05 half\r\n    float dome = max(sphere, cap);\r\n    // skirt below dome\r\n    float skirtR = bellR * (1.0 + 0.25 * smoothstep(0.0, 0.12, -p.y - 0.05));\r\n    float skirt = length(p.xz) - skirtR - ripple;\r\n    float skirtH = max(-p.y - 0.05, p.y + 0.05 + 0.12);\r\n    float skirtSdf = max(skirt, skirtH);\r\n    return min(dome, skirtSdf);\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime;\r\n    float pulse = 0.5 + 0.5 * sin(t * 2.6);\r\n    // camera: fixed above, looking slightly down\r\n    vec3 ro = vec3(0.0, 0.4, 1.1);\r\n    vec3 target = vec3(sin(t * 0.18) * 0.08, -0.05, 0.0);\r\n    vec3 fwd = normalize(target - ro);\r\n    vec3 right = normalize(cross(fwd, vec3(0,1,0)));\r\n    vec3 up = cross(right, fwd);\r\n    vec3 rd = normalize(fwd + uv.x * right + uv.y * up);\r\n    // raymarch\r\n    float dz = 0.0;\r\n    float glow = 0.0;\r\n    vec3 glowCol = vec3(0.0);\r\n    bool hit = false;\r\n    vec3 hitP = vec3(0.0);\r\n    for (int i = 0; i < 56; i++) {\r\n        vec3 p = ro + rd * dz;\r\n        float d = sdfBell(p, pulse);\r\n        if (d < 0.003) { hit = true; hitP = p; break; }\r\n        // accumulate volumetric glow near surface\r\n        glow += 0.012 / max(abs(d) * 6.0, 0.01);\r\n        dz += max(d * 0.55, 0.005);\r\n        if (dz > 3.5) break;\r\n    }\r\n    // deep water bg\r\n    vec3 bg = vec3(0.0, 0.012, 0.04);\r\n    bg += 0.006 * noise(uv * 4.0 + t * 0.07) * vec3(0.0, 0.4, 1.0);\r\n    vec3 col = bg;\r\n    if (hit) {\r\n        float nr = length(hitP.xz);\r\n        float angle = atan(hitP.x, hitP.z);\r\n        float bands = 0.5 + 0.5 * sin(nr * 22.0 - t * 3.0 + angle * 3.0);\r\n        vec3 jc = mix(vec3(0.05, 0.6, 0.8), vec3(0.3, 0.1, 0.6), bands);\r\n        col = jc * (0.5 + 0.4 * pulse);\r\n    }\r\n    // glow halo around bell\r\n    glow = clamp(glow * 0.18, 0.0, 1.0);\r\n    col += vec3(0.15, 0.75, 1.0) * glow * (0.6 + 0.4 * pulse);\r\n    // tentacles: 2D SDF strands below bell projected on screen\r\n    for (int k = 0; k < 8; k++) {\r\n        float fk = float(k);\r\n        float ta = 6.28318 * fk / 8.0;\r\n        vec2 tscreen = vec2(sin(ta), -cos(ta)) * 0.10;\r\n        vec2 tbase = tscreen;\r\n        float along = uv.y - tbase.y;\r\n        float sway = 0.025 * sin(along * 7.0 - t * 2.5 + fk * 0.8);\r\n        float td = abs(uv.x - tbase.x - sway) - 0.0018;\r\n        float fade = smoothstep(0.0, 0.03, along) * smoothstep(0.30, 0.05, along);\r\n        col += vec3(0.1, 0.9, 0.85) * 0.45 * fade * smoothstep(0.006, 0.0, td);\r\n    }\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 4,
+    "strategy": "polar wave rings",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime;\r\n    // two jellyfish offset in time and space\r\n    vec3 col = vec3(0.0, 0.01, 0.04);\r\n    // water shimmer\r\n    col += 0.007 * noise(uv * 5.0 + t * 0.09) * vec3(0.0, 0.35, 1.0);\r\n    for (int j = 0; j < 2; j++) {\r\n        float fj = float(j);\r\n        float tOff = fj * 1.3;\r\n        float tLocal = t + tOff;\r\n        float pulse = 0.5 + 0.5 * sin(tLocal * 2.4);\r\n        vec2 jc = vec2(sin(tLocal * 0.31 + fj * 2.1) * 0.22, sin(tLocal * 0.19 + fj * 3.7) * 0.1);\r\n        vec2 p = uv - jc;\r\n        float rad = length(p);\r\n        float theta = atan(p.x, p.y); // 0 at top\r\n        // polar bell boundary with pulsing + scallop\r\n        float bellR = (0.13 + 0.03 * fj) * (1.0 + 0.11 * pulse);\r\n        float bellBound = bellR * (1.0 + 0.08 * sin(theta * 8.0 + tLocal * 1.8));\r\n        // radial wave rings expanding outward from center\r\n        float rn = rad / max(bellBound, 0.001);\r\n        // 3 concentric pulsing rings inside dome\r\n        float rings = 0.0;\r\n        for (int ri = 1; ri <= 3; ri++) {\r\n            float fr = float(ri);\r\n            float ringR = fr * 0.28 + 0.05 * pulse;\r\n            rings += exp(-abs(rn - ringR) * 28.0) * (1.0 - fr * 0.2);\r\n        }\r\n        rings = clamp(rings, 0.0, 1.0);\r\n        // dome mask: inside bell boundary, upper half\r\n        float dome = smoothstep(bellBound + 0.01, bellBound - 0.01, rad)\r\n                    * smoothstep(bellBound * 0.05, -bellBound * 0.05, p.y - bellBound * 0.4);\r\n        float innerGlow = exp(-rad * rad / max(bellBound * bellBound * 0.18, 0.0001)) * pulse;\r\n        // rim light at bell boundary\r\n        float rim = exp(-abs(rad - bellBound) * 65.0) * dome;\r\n        vec3 jCol = palette(rn * 0.5 + tLocal * 0.07 + fj * 0.4,\r\n            vec3(0.05 + fj * 0.05, 0.35, 0.55), vec3(0.07, 0.4, 0.38),\r\n            vec3(1.0, 0.9, 0.5), vec3(fj * 0.3, 0.25, 0.6));\r\n        col += jCol * dome * (0.45 + 0.45 * rings);\r\n        col += vec3(0.25, 0.85, 1.0) * innerGlow * 0.35;\r\n        col += vec3(0.45, 1.0, 0.9) * rim * 0.55;\r\n        // tentacle polar fans below bell\r\n        for (int k = 0; k < 10; k++) {\r\n            float fk = float(k);\r\n            float ta = 6.28318 * fk / 10.0;\r\n            vec2 tdir = vec2(sin(ta), 1.0); // mostly downward\r\n            vec2 base = jc + vec2(sin(ta), cos(ta)) * bellBound * 0.9;\r\n            vec2 q = uv - base;\r\n            float along = q.y;\r\n            float sway = 0.02 * sin(along * 8.0 - tLocal * 2.0 + fk * 0.7);\r\n            float td = abs(q.x - sway) - 0.0022;\r\n            float fade = smoothstep(0.0, 0.03, along) * smoothstep(0.22, 0.04, along);\r\n            col += vec3(0.1, 0.85 + fj * 0.1, 0.85) * 0.45 * fade * smoothstep(0.006, 0.0, td);\r\n        }\r\n    }\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "jelly",
+    "prompt": "bioluminescent jellyfish pulsing in deep water",
+    "i": 5,
+    "strategy": "additive particle bloom",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\nvec2 hash22(vec2 p) {\r\n    return vec2(hash21(p), hash21(p + vec2(3.7, 1.9)));\r\n}\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)), c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0; float a = 0.5;\r\n    for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; }\r\n    return v;\r\n}\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;\r\n    float t = iTime;\r\n    float pulse = 0.5 + 0.5 * sin(t * 2.3);\r\n    vec3 col = vec3(0.0, 0.008, 0.032);\r\n    // water caustic shimmer layer\r\n    float caustic = fbm(uv * 3.5 + t * 0.12) * fbm(uv * 4.2 - t * 0.09);\r\n    col += vec3(0.0, 0.04, 0.12) * caustic;\r\n    // jellyfish center\r\n    vec2 jc = vec2(sin(t * 0.25) * 0.12, sin(t * 0.38) * 0.07);\r\n    vec2 p = uv - jc;\r\n    float rad = length(p);\r\n    float angle = atan(p.x, p.y);\r\n    float bellR = 0.17 * (1.0 + 0.1 * pulse);\r\n    // layer 1: core bright nucleus\r\n    float core = exp(-rad * rad / max(bellR * bellR * 0.06, 0.0001));\r\n    col += vec3(0.5, 1.0, 0.9) * core * 0.7 * pulse;\r\n    // layer 2: mid bell glow, scalloped\r\n    float scallop = 1.0 + 0.12 * sin(angle * 8.0 + t * 2.0);\r\n    float bellGlow = exp(-abs(rad - bellR * 0.6 * scallop) * 18.0);\r\n    bellGlow *= smoothstep(bellR * 1.1, -bellR * 0.1, rad - p.y * 0.4);\r\n    col += palette(rad / max(bellR, 0.001) + t * 0.1,\r\n        vec3(0.05, 0.4, 0.6), vec3(0.08, 0.38, 0.38),\r\n        vec3(1.0, 0.8, 0.5), vec3(0.0, 0.3, 0.62)) * bellGlow * 0.55;\r\n    // layer 3: outer halo bloom (gaussian)\r\n    float halo = exp(-rad * rad / max(bellR * bellR * 0.9, 0.0001));\r\n    col += vec3(0.08, 0.45, 0.7) * halo * 0.25 * (0.5 + 0.5 * pulse);\r\n    // layer 4: pulsing ring at edge\r\n    float ring = exp(-abs(rad - bellR) * 55.0);\r\n    ring *= smoothstep(0.0, -0.6, (p.y - bellR * 0.4) / max(bellR, 0.001));\r\n    col += vec3(0.4, 1.0, 0.85) * ring * 0.6;\r\n    // layer 5: bioluminescent particle field (sparse glowing orbs on tentacles)\r\n    for (int i = 0; i < 18; i++) {\r\n        float fi = float(i);\r\n        vec2 seed = vec2(fi * 0.37, fi * 0.71);\r\n        vec2 h = hash22(seed);\r\n        // distribute along tentacle directions\r\n        float ta = 6.28318 * floor(fi / 2.0) / 9.0;\r\n        float along = 0.05 + h.x * 0.25;\r\n        float particlePhase = h.y * 6.28318;\r\n        float particlePulse = 0.5 + 0.5 * sin(t * 3.0 + particlePhase);\r\n        float sway = 0.015 * sin(along * 6.0 - t * 1.8 + fi);\r\n        vec2 ppos = jc + vec2(sin(ta) * bellR + sway, cos(ta) * bellR + along) + vec2(sway, 0.0);\r\n        float pd = length(uv - ppos);\r\n        float ptGlow = exp(-pd * pd / 0.0003) * particlePulse;\r\n        vec3 ptCol = palette(h.x + t * 0.15,\r\n            vec3(0.1, 0.5, 0.7), vec3(0.1, 0.4, 0.3),\r\n            vec3(0.8, 0.6, 0.4), vec3(h.y, 0.2, 0.5));\r\n        col += ptCol * ptGlow * 0.6;\r\n    }\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 0,
+    "strategy": "voronoi cell cracks",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec2 hash22(vec2 p){return vec2(hash21(p),hash21(p+31.7));}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 st=uv*6.0;\r\n    vec2 ip=floor(st),fp=fract(st);\r\n    float d0=1e9,d1=1e9;\r\n    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){\r\n        vec2 nb=vec2(float(x),float(y));\r\n        vec2 pt=0.5+0.45*sin(iTime*0.25+6.2831*hash22(ip+nb));\r\n        float d=length(nb+pt-fp);\r\n        if(d<d0){d1=d0;d0=d;}else if(d<d1){d1=d;}\r\n    }\r\n    float edge=d1-d0;\r\n    float cool=clamp(iTime*0.38,0.0,1.0);\r\n    float crustW=smoothstep(0.0,0.28,edge);\r\n    vec3 molten=vec3(1.0,0.38,0.04);\r\n    vec3 crust=vec3(0.07,0.05,0.04);\r\n    vec3 cell=mix(molten,crust,crustW*cool);\r\n    float glow=1.0-smoothstep(0.0,0.12,edge);\r\n    float crackHeat=1.0-cool*0.7;\r\n    vec3 crack=mix(vec3(1.0,0.55,0.08),vec3(0.5,0.08,0.0),cool)*crackHeat;\r\n    vec3 col=mix(cell,crack,glow);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1,0)),c=hash21(i+vec2(0,1)),d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 st=uv*3.0;\r\n    float t=iTime;\r\n    vec2 q=vec2(fbm(st+t*0.09),fbm(st+vec2(5.2,1.3)+t*0.07));\r\n    vec2 r=vec2(fbm(st+2.0*q+vec2(1.7,9.2)),fbm(st+2.0*q+vec2(8.3,2.8)));\r\n    float f=fbm(st+2.5*r);\r\n    // ridge: narrow bright band near threshold\r\n    float cool=clamp(t*0.3,0.0,1.0);\r\n    float thresh=0.52;\r\n    float ridge=1.0-abs(f-thresh)*18.0;\r\n    ridge=clamp(ridge,0.0,1.0)*smoothstep(0.0,0.4,cool);\r\n    vec3 molten=vec3(1.0,0.45+f*0.3,0.05);\r\n    vec3 crust=vec3(0.09-f*0.04,0.06,0.04);\r\n    vec3 col=mix(molten,crust,cool*(1.0-ridge));\r\n    col=mix(col,vec3(1.0,0.5,0.06),ridge);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 2,
+    "strategy": "radial cooling SDF",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1,0)),c=hash21(i+vec2(0,1)),d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n    float r=length(uv);\r\n    float a=atan(uv.y,uv.x);\r\n    float cool=clamp(iTime*0.32,0.0,1.0);\r\n    // crust front: annular ring expanding from outside in\r\n    float crustFront=0.85-cool*0.78;\r\n    float isCrust=smoothstep(crustFront,crustFront+0.05,r);\r\n    // radial crack lines: noise in angle domain\r\n    float crackN=noise(vec2(a*4.0/3.14159+5.0,r*8.0+iTime*0.1));\r\n    float crack=(1.0-smoothstep(0.0,0.08,abs(crackN-0.5)))*isCrust*smoothstep(0.0,0.3,isCrust);\r\n    // ring edge glow\r\n    float frontGlow=1.0-smoothstep(0.0,0.06,abs(r-crustFront));\r\n    vec3 molten=mix(vec3(1.0,0.65,0.05),vec3(1.0,0.2,0.0),clamp(r*1.2,0.0,1.0));\r\n    vec3 crust=vec3(0.08,0.06,0.05)*mix(1.0,0.5,crackN);\r\n    vec3 col=mix(molten,crust,isCrust*(1.0-crack));\r\n    col=mix(col,vec3(1.0,0.5,0.05),crack+frontGlow*(1.0-isCrust*0.5));\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 3,
+    "strategy": "ridge noise crust",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1,0)),c=hash21(i+vec2(0,1)),d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat ridge(vec2 p){float v=0.0,a=0.5,s=1.0;for(int i=0;i<6;i++){float n=1.0-abs(noise(p)*2.0-1.0);v+=n*n*a;p*=2.1;a*=0.48;}return v;}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    float t=iTime;\r\n    vec2 st=uv*4.0+vec2(t*0.04,0.0);\r\n    float rn=ridge(st);\r\n    // crack: narrow band near ridge peaks\r\n    float crackLine=smoothstep(0.62,0.75,rn);\r\n    // base surface: slow noise for crust texture\r\n    float surf=noise(uv*8.0+t*0.05)*0.3+noise(uv*16.0)*0.1;\r\n    float cool=clamp(t*0.33,0.0,1.0);\r\n    // crust grows over surface, interrupted by cracks\r\n    float crustVal=clamp(cool-surf*0.3,0.0,1.0)*(1.0-crackLine);\r\n    vec3 molten=vec3(1.0,0.35+surf,0.03);\r\n    vec3 crust=vec3(0.1+surf*0.15,0.08,0.06);\r\n    vec3 crack=vec3(1.0,0.5+0.1*sin(t*4.0+rn*10.0),0.04);\r\n    vec3 col=mix(mix(molten,crust,crustVal),crack,crackLine);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 4,
+    "strategy": "cellular worley",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec2 hash22(vec2 p){return fract(p*mat2(127.1,311.7,269.5,183.3));}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 st=uv*7.0;\r\n    vec2 ip=floor(st),fp=fract(st);\r\n    float F1=1e9,F2=1e9;\r\n    vec2 mg=vec2(0.0);\r\n    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){\r\n        vec2 nb=vec2(float(x),float(y));\r\n        vec2 rp=hash22(ip+nb);\r\n        rp=0.5+0.45*sin(6.2831*rp+iTime*0.2);\r\n        float d=length(nb+rp-fp);\r\n        if(d<F1){F2=F1;F1=d;mg=ip+nb;}else if(d<F2){F2=d;}\r\n    }\r\n    float cell=F2-F1;\r\n    float interior=F1;\r\n    // smooth crack width\r\n    float crack=1.0-smoothstep(0.0,0.1,cell);\r\n    float cool=clamp(iTime*0.35,0.0,1.0);\r\n    // per-cell cooling offset using cell id hash\r\n    float cellPhase=hash21(mg);\r\n    float cellCool=clamp((cool-cellPhase*0.4)*2.5,0.0,1.0);\r\n    vec3 molten=mix(vec3(1.0,0.55,0.02),vec3(0.9,0.25,0.0),interior*1.5);\r\n    vec3 crust=mix(vec3(0.12,0.08,0.06),vec3(0.04,0.03,0.02),interior);\r\n    vec3 crackCol=vec3(1.0,0.45+0.1*sin(iTime*3.0),0.03)*(1.0-cool*0.6);\r\n    vec3 col=mix(mix(molten,crust,cellCool),crackCol,crack);\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "metal",
+    "prompt": "molten metal cooling, dark crust forming, orange cracks",
+    "i": 5,
+    "strategy": "raymarched lava volume",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i),b=hash21(i+vec2(1,0)),c=hash21(i+vec2(0,1)),d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\n\r\nfloat sdf(vec3 p){\r\n    float base=fbm(p.xz*1.4+iTime*0.05)*0.35;\r\n    return p.y-base;\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=(fragCoord-0.5*iResolution.xy)/iResolution.y;\r\n    vec3 ro=vec3(0.0,1.2,2.2);\r\n    vec3 rd=normalize(vec3(uv.x,uv.y-0.3,-1.0));\r\n    float cool=clamp(iTime*0.3,0.0,1.0);\r\n    vec3 col=vec3(0.02,0.01,0.01);\r\n    float t=0.0;\r\n    bool hit=false;\r\n    for(int i=0;i<48;i++){\r\n        vec3 p=ro+rd*t;\r\n        float d=sdf(p);\r\n        if(d<0.005){hit=true;break;}\r\n        t+=max(d*0.6,0.005);\r\n        if(t>6.0)break;\r\n    }\r\n    if(hit){\r\n        vec3 p=ro+rd*t;\r\n        vec2 sp=p.xz;\r\n        float surface=fbm(sp*2.5+iTime*0.08);\r\n        float crack=1.0-smoothstep(0.0,0.07,abs(surface-0.52));\r\n        float cellN=fbm(sp*5.0+0.5);\r\n        float crustMask=smoothstep(0.4,0.7,cellN)*cool;\r\n        vec3 melt=mix(vec3(1.0,0.5,0.03),vec3(0.8,0.18,0.0),clamp(1.0-surface*2.0,0.0,1.0));\r\n        vec3 crust=vec3(0.09+cellN*0.06,0.06,0.05);\r\n        vec3 crackCol=vec3(1.0,0.45,0.04)*(0.6+0.4*sin(iTime*3.5+sp.x*8.0));\r\n        col=mix(mix(melt,crust,crustMask*(1.0-crack)),crackCol,crack*cool);\r\n    }\r\n    fragColor=vec4(clamp(col,0.0,1.0),1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 0,
+    "strategy": "thin film interference",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 p=uv*5.0;\r\n    float t=iTime*0.12;\r\n    float thick=fbm(p+vec2(t,t*0.7))*0.75+fbm(p*0.4-vec2(t*0.5,0.0))*0.25;\r\n    float eps=0.015;\r\n    float hx=(fbm(p+vec2(eps,0))-fbm(p-vec2(eps,0)))/(2.0*eps);\r\n    float hy=(fbm(p+vec2(0,eps))-fbm(p-vec2(0,eps)))/(2.0*eps);\r\n    vec3 N=normalize(vec3(-hx*0.4,-hy*0.4,1.0));\r\n    float cosT=clamp(dot(N,vec3(0,0,1)),0.0,1.0);\r\n    float phase=thick*8.0+iTime*0.25;\r\n    float rc=0.5+0.5*cos(phase*1.00*cosT*6.2832);\r\n    float gc=0.5+0.5*cos(phase*1.35*cosT*6.2832+1.047);\r\n    float bc=0.5+0.5*cos(phase*1.75*cosT*6.2832+2.094);\r\n    vec3 iri=vec3(rc,gc,bc);\r\n    float grain=fbm(p*6.0)*0.12+0.08;\r\n    vec3 asphalt=vec3(grain*0.9,grain*0.92,grain);\r\n    float oil=smoothstep(0.28,0.58,thick);\r\n    vec3 col=mix(asphalt,iri*0.65+vec3(0.03,0.02,0.04),oil);\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 1,
+    "strategy": "voronoi crack pools",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nvec2 hash22(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}\r\nfloat voronoi(vec2 p,out float dist2){\r\n    vec2 i=floor(p);\r\n    vec2 f=fract(p);\r\n    float d1=8.0,d2=8.0;\r\n    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){\r\n        vec2 n=vec2(x,y);\r\n        vec2 o=hash22(i+n);\r\n        vec2 r=n+o-f;\r\n        float d=dot(r,r);\r\n        if(d<d1){d2=d1;d1=d;}else if(d<d2){d2=d;}\r\n    }\r\n    dist2=sqrt(d2);\r\n    return sqrt(d1);\r\n}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 p=uv*7.0;\r\n    float d2;\r\n    float d1=voronoi(p,d2);\r\n    float edge=d2-d1;\r\n    float inCrack=1.0-smoothstep(0.0,0.18,edge);\r\n    float oilDepth=inCrack*(0.5+0.5*sin(iTime*0.4+d1*3.14));\r\n    float phase=oilDepth*9.0+iTime*0.35+hash21(floor(p))*6.28;\r\n    vec3 iriCol=palette(phase,vec3(0.5),vec3(0.5),vec3(1.0,0.9,0.8),vec3(0.0,0.15,0.3));\r\n    float grain=noise(p*4.0)*0.15+0.07;\r\n    vec3 stone=vec3(grain*0.85,grain*0.88,grain*0.9);\r\n    float poolMask=smoothstep(0.05,0.35,inCrack);\r\n    vec3 col=mix(stone,iriCol*0.7+vec3(0.02,0.02,0.03),poolMask);\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 2,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 p=uv*3.0;\r\n    float t=iTime*0.15;\r\n    vec2 q=vec2(fbm(p+vec2(0.0,0.0)+t),fbm(p+vec2(5.2,1.3)+t));\r\n    vec2 r=vec2(fbm(p+4.0*q+vec2(1.7,9.2)+t*0.8),fbm(p+4.0*q+vec2(8.3,2.8)+t*0.8));\r\n    float f=fbm(p+4.0*r);\r\n    float hue=f*3.0+iTime*0.2;\r\n    vec3 iri=palette(hue,vec3(0.5,0.5,0.5),vec3(0.45,0.48,0.5),vec3(1.0,1.1,0.9),vec3(0.0,0.1,0.4));\r\n    float oilMask=smoothstep(0.35,0.65,f);\r\n    float grain=fbm(p*8.0)*0.1+0.08;\r\n    vec3 asp=vec3(grain*0.85,grain*0.87,grain*0.9);\r\n    vec3 col=mix(asp,iri*0.6+vec3(0.03,0.02,0.05),oilMask);\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 3,
+    "strategy": "polar radial rings",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=(fragCoord-iResolution.xy*0.5)/iResolution.y;\r\n    float r=length(uv);\r\n    float a=atan(uv.y,uv.x);\r\n    float warp=fbm(uv*3.0+iTime*0.08)*0.3;\r\n    float rw=r+warp;\r\n    float angShift=fbm(vec2(r*4.0,iTime*0.12))*0.4;\r\n    float bands=rw*12.0+angShift+iTime*0.5+a*0.8;\r\n    vec3 iriCol=palette(bands,vec3(0.5,0.5,0.5),vec3(0.5,0.48,0.45),vec3(1.0,0.95,0.85),vec3(0.0,0.2,0.5));\r\n    float oilEdge=smoothstep(0.52,0.48,rw);\r\n    float rimGlow=smoothstep(0.48,0.50,rw)*smoothstep(0.55,0.50,rw);\r\n    float grain=fbm((uv+vec2(3.7,1.2))*9.0)*0.12+0.07;\r\n    vec3 asp=vec3(grain*0.84,grain*0.87,grain*0.9);\r\n    vec3 col=mix(asp,iriCol*0.65,oilEdge)+rimGlow*vec3(0.4,0.5,0.6)*0.3;\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 4,
+    "strategy": "sdf blob layered",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nfloat smin(float a,float b,float k){float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0);return mix(b,a,h)-k*h*(1.0-h);}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=(fragCoord-iResolution.xy*0.5)/iResolution.y;\r\n    float t=iTime;\r\n    vec2 c0=vec2(sin(t*0.23)*0.15,cos(t*0.19)*0.08);\r\n    vec2 c1=vec2(cos(t*0.31+1.0)*0.12,sin(t*0.27+2.0)*0.10);\r\n    vec2 c2=vec2(sin(t*0.17+3.0)*0.18,cos(t*0.22+1.5)*0.06);\r\n    float d0=length(uv-c0)-0.22;\r\n    float d1=length(uv-c1)-0.18;\r\n    float d2=length(uv-c2)-0.14;\r\n    float d=smin(smin(d0,d1,0.06),d2,0.05);\r\n    float edgeWarp=fbm(uv*6.0+t*0.15)*0.04;\r\n    d+=edgeWarp;\r\n    float oilMask=smoothstep(0.02,-0.06,d);\r\n    float rim=smoothstep(0.06,0.0,abs(d+0.01));\r\n    float thick=fbm(uv*4.0+vec2(t*0.1,-t*0.08));\r\n    float hue=thick*4.0+t*0.3+length(uv)*2.0;\r\n    vec3 iriCol=palette(hue,vec3(0.5,0.5,0.5),vec3(0.5,0.45,0.48),vec3(0.9,1.0,1.1),vec3(0.05,0.2,0.45));\r\n    float grain=fbm(uv*10.0+vec2(1.3,4.7))*0.12+0.07;\r\n    vec3 asp=vec3(grain*0.84,grain*0.87,grain*0.9);\r\n    vec3 col=mix(asp,iriCol*0.65+vec3(0.02,0.01,0.03),oilMask);\r\n    col+=rim*vec3(0.3,0.4,0.55)*0.25;\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "oil",
+    "prompt": "oil slick on wet asphalt shifting colours",
+    "i": 5,
+    "strategy": "curl flow field",
+    "source": "float hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}\r\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);float a=hash21(i);float b=hash21(i+vec2(1,0));float c=hash21(i+vec2(0,1));float d=hash21(i+vec2(1,1));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}\r\nfloat fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}return v;}\r\nvec2 curl(vec2 p,float t){\r\n    float e=0.01;\r\n    float nx0=fbm(p+vec2(0,e)+t*0.07);\r\n    float nx1=fbm(p-vec2(0,e)+t*0.07);\r\n    float ny0=fbm(p+vec2(e,0)+t*0.07);\r\n    float ny1=fbm(p-vec2(e,0)+t*0.07);\r\n    return vec2(nx0-nx1,-(ny0-ny1))/(2.0*e);\r\n}\r\nvec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){return a+b*cos(6.28318*(c*t+d));}\r\nvoid mainImage(out vec4 fragColor,in vec2 fragCoord){\r\n    vec2 uv=fragCoord/iResolution.xy;\r\n    vec2 p=uv*3.5;\r\n    float t=iTime;\r\n    vec2 flow=curl(p,t);\r\n    float flowLen=length(flow);\r\n    vec2 flowDir=flowLen>0.001?flow/flowLen:vec2(1,0);\r\n    float pathAngle=atan(flowDir.y,flowDir.x);\r\n    vec2 advected=p+flowDir*0.15;\r\n    float thickness=fbm(advected+t*0.05)*0.7+fbm(p*0.5)*0.3;\r\n    float hue=pathAngle*0.3+thickness*3.5+t*0.28;\r\n    vec3 iriCol=palette(hue,vec3(0.5,0.5,0.5),vec3(0.48,0.5,0.45),vec3(1.0,0.9,0.85),vec3(0.1,0.0,0.35));\r\n    float oilMask=smoothstep(0.25,0.55,thickness);\r\n    float grain=fbm(p*7.0)*0.13+0.07;\r\n    vec3 asp=vec3(grain*0.84,grain*0.87,grain*0.91);\r\n    vec3 col=mix(asp,iriCol*0.62+vec3(0.02,0.01,0.03),oilMask);\r\n    col=clamp(col,0.0,1.0);\r\n    fragColor=vec4(col,1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 0,
+    "strategy": "sdf rain streaks",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\n\r\nvec3 cityBokeh(vec2 uv) {\r\n    vec3 col = vec3(0.0);\r\n    for (int ix = 0; ix < 7; ix++) {\r\n        for (int iy = 0; iy < 7; iy++) {\r\n            vec2 cell = floor(uv * 5.0) + vec2(float(ix) - 3.0, float(iy) - 3.0);\r\n            float h = hash21(cell);\r\n            if (h > 0.6) {\r\n                vec2 jitter = vec2(hash21(cell + 13.7), hash21(cell + 27.3)) - 0.5;\r\n                vec2 center = (cell + 0.5 + jitter * 0.7) / 5.0;\r\n                float dist = length(uv - center);\r\n                float r = 0.04 + hash21(cell + 1.1) * 0.08;\r\n                float glow = exp(-dist * dist / max(r * r * 0.4, 1e-5));\r\n                vec3 lc = palette(hash21(cell + 2.2), vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));\r\n                col += lc * glow * 0.9;\r\n            }\r\n        }\r\n    }\r\n    return col;\r\n}\r\n\r\nfloat streak(vec2 uv) {\r\n    float COLS = 38.0;\r\n    float ci = floor(uv.x * COLS);\r\n    float speed = 0.6 + hash21(vec2(ci, 0.0)) * 1.8;\r\n    float off = hash21(vec2(ci, 1.0));\r\n    float len = 0.04 + hash21(vec2(ci, 2.0)) * 0.1;\r\n    float y = fract(uv.y + iTime * speed + off);\r\n    float x = fract(uv.x * COLS) - 0.5;\r\n    return smoothstep(len, 0.0, y) * smoothstep(0.018, 0.0, abs(x));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n    vec3 bg = cityBokeh(uv);\r\n    bg += vec3(0.0, 0.04, 0.12) * (1.0 - uv.y * 0.8);\r\n    bg = clamp(bg, 0.0, 1.0);\r\n\r\n    float r1 = streak(uv);\r\n    float r2 = streak(uv * vec2(1.9, 1.4) + vec2(0.41, 0.0)) * 0.5;\r\n    float rain = clamp(r1 + r2, 0.0, 1.0);\r\n\r\n    vec3 rainCol = vec3(0.35, 0.45, 0.65) + bg * 0.6;\r\n    vec3 col = mix(bg, rainCol, rain * 0.85);\r\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 1,
+    "strategy": "fbm glass refraction",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0;\r\n    float a = 0.5;\r\n    for (int i = 0; i < 5; i++) {\r\n        v += a * noise(p);\r\n        p *= 2.0;\r\n        a *= 0.5;\r\n    }\r\n    return v;\r\n}\r\n\r\nvec3 cityLayer(vec2 uv) {\r\n    vec3 col = vec3(0.0);\r\n    for (int ix = 0; ix < 7; ix++) {\r\n        for (int iy = 0; iy < 5; iy++) {\r\n            vec2 cell = vec2(float(ix), float(iy));\r\n            float h = hash21(cell * 7.31);\r\n            if (h > 0.45) {\r\n                vec2 center = (cell + vec2(hash21(cell), hash21(cell + 9.1))) / vec2(7.0, 5.0);\r\n                float dist = length(uv - center);\r\n                float r = 0.06 + hash21(cell + 3.3) * 0.09;\r\n                float g = exp(-dist * dist / max(r * r * 0.5, 1e-5));\r\n                float hue = hash21(cell + 5.5);\r\n                vec3 lc = mix(vec3(1.0, 0.5, 0.1), vec3(0.3, 0.6, 1.0), hue);\r\n                col += lc * g * 0.8;\r\n            }\r\n        }\r\n    }\r\n    return col;\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n\r\n    // rain rivulets on glass via fbm domain warp\r\n    vec2 warpUV = uv * vec2(6.0, 12.0) + vec2(0.0, iTime * 0.3);\r\n    float wx = fbm(warpUV + vec2(1.7, 9.2)) - 0.5;\r\n    float wy = fbm(warpUV + vec2(8.3, 2.8)) - 0.5;\r\n    // stronger vertical flow\r\n    vec2 warp = vec2(wx * 0.015, wy * 0.04 + 0.02);\r\n\r\n    // sample background through distorted UV\r\n    vec2 bgUV = uv + warp;\r\n    vec3 bg = cityLayer(clamp(bgUV, 0.0, 1.0));\r\n    bg += vec3(0.0, 0.03, 0.1) * (1.0 - uv.y);\r\n    bg = clamp(bg, 0.0, 1.0);\r\n\r\n    // glass wetness mask (brighter where glass is wet)\r\n    float wetness = fbm(uv * vec2(4.0, 8.0) + vec2(0.0, iTime * 0.15));\r\n    wetness = smoothstep(0.4, 0.7, wetness);\r\n    vec3 glassSheen = vec3(0.25, 0.32, 0.5) * wetness * 0.4;\r\n\r\n    vec3 col = bg + glassSheen;\r\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 2,
+    "strategy": "voronoi city blocks",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\n\r\n// Voronoi returning distance and cell id\r\nvec2 voronoi(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    float minDist = 8.0;\r\n    float cellId = 0.0;\r\n    for (int x = -1; x <= 1; x++) {\r\n        for (int y = -1; y <= 1; y++) {\r\n            vec2 n = vec2(float(x), float(y));\r\n            vec2 g = i + n;\r\n            vec2 o = vec2(hash21(g), hash21(g + 31.7));\r\n            vec2 r = n + o - f;\r\n            float d = dot(r, r);\r\n            if (d < minDist) { minDist = d; cellId = hash21(g + 77.0); }\r\n        }\r\n    }\r\n    return vec2(sqrt(minDist), cellId);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n\r\n    // city blocks via voronoi\r\n    vec2 vor = voronoi(uv * vec2(12.0, 8.0));\r\n    float isLight = step(0.55, vor.y); // ~45% of cells lit\r\n    float edgeDark = smoothstep(0.0, 0.1, vor.x); // dark at cell edges = building outlines\r\n    vec3 lightCol = palette(vor.y, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));\r\n    vec3 cityCol = lightCol * isLight * edgeDark * 0.7;\r\n\r\n    // add a bokeh halo on lit cells\r\n    float bokeh = exp(-vor.x * vor.x * 40.0) * isLight;\r\n    cityCol += lightCol * bokeh * 0.5;\r\n\r\n    cityCol += vec3(0.0, 0.02, 0.08) * (1.0 - uv.y);\r\n    cityCol = clamp(cityCol, 0.0, 1.0);\r\n\r\n    // rain noise overlay: two noise layers scrolling down\r\n    float r1 = noise(uv * vec2(40.0, 5.0) + vec2(0.0, iTime * 3.0));\r\n    float r2 = noise(uv * vec2(30.0, 4.0) + vec2(17.3, iTime * 2.2));\r\n    float rain = pow(r1, 6.0) * 0.6 + pow(r2, 6.0) * 0.4;\r\n\r\n    vec3 rainTint = vec3(0.4, 0.5, 0.7);\r\n    vec3 col = mix(cityCol, rainTint, rain * 0.7);\r\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 3,
+    "strategy": "polar bokeh halos",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nvec3 bokehLight(vec2 uv, vec2 pos, float radius, vec3 col) {\r\n    vec2 delta = uv - pos;\r\n    float dist = length(delta);\r\n    // core glow\r\n    float core = exp(-dist * dist / max(radius * radius * 0.05, 1e-5));\r\n    // defocus ring (characteristic bokeh hexagonal edge) - approximated with gaussian ring\r\n    float ring = exp(-pow(dist - radius * 0.7, 2.0) / max(radius * radius * 0.02, 1e-5));\r\n    // polar angle modulation for lens aperture artifact\r\n    float angle = atan(delta.y, delta.x);\r\n    float aperture = 0.8 + 0.2 * cos(angle * 6.0); // hexagonal aperture\r\n    return col * (core * 0.6 + ring * aperture * 0.5);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n    float aspect = iResolution.x / iResolution.y;\r\n    vec2 uvA = vec2(uv.x * aspect, uv.y);\r\n\r\n    // scatter bokeh lights\r\n    vec3 bg = vec3(0.0, 0.02, 0.07) * (1.0 - uv.y * 0.6);\r\n    for (int i = 0; i < 18; i++) {\r\n        float fi = float(i);\r\n        vec2 seed = vec2(fi * 3.71, fi * 7.13);\r\n        vec2 pos = vec2(hash21(seed) * aspect, hash21(seed + 1.0) * 0.85 + 0.05);\r\n        float r = 0.05 + hash21(seed + 2.0) * 0.12;\r\n        float hue = hash21(seed + 3.0);\r\n        // warm orange/yellow or cool blue/white\r\n        vec3 lc = mix(vec3(1.0, 0.55, 0.1), vec3(0.5, 0.75, 1.0), hue);\r\n        float bright = 0.4 + hash21(seed + 4.0) * 0.6;\r\n        // slow flicker\r\n        bright *= 0.9 + 0.1 * sin(iTime * (1.0 + hash21(seed + 5.0) * 3.0) + fi);\r\n        bg += bokehLight(uvA, pos, r, lc * bright);\r\n    }\r\n    bg = clamp(bg, 0.0, 1.0);\r\n\r\n    // falling rain drops: use noise to simulate streaks\r\n    float rain = 0.0;\r\n    for (int j = 0; j < 3; j++) {\r\n        float fj = float(j);\r\n        float scale = 25.0 + fj * 15.0;\r\n        float speed = 1.5 + fj * 0.8;\r\n        float n = noise(uv * vec2(scale, scale * 0.15) + vec2(fj * 5.3, iTime * speed));\r\n        rain += pow(n, 8.0) * (0.6 - fj * 0.15);\r\n    }\r\n    rain = clamp(rain, 0.0, 1.0);\r\n\r\n    vec3 rainTint = vec3(0.3, 0.42, 0.65) + bg * 0.5;\r\n    vec3 col = mix(bg, rainTint, rain);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 4,
+    "strategy": "layered noise drips",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0;\r\n    float a = 0.5;\r\n    for (int i = 0; i < 5; i++) {\r\n        v += a * noise(p);\r\n        p *= 2.0;\r\n        a *= 0.5;\r\n    }\r\n    return v;\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\n\r\n// one column of dripping water\r\nfloat drip(vec2 uv, float col, float t) {\r\n    float cx = fract(uv.x * 50.0 - col * 0.618);\r\n    float speed = 0.4 + hash21(vec2(col, 0.0)) * 1.2;\r\n    float cy = fract(uv.y + t * speed + hash21(vec2(col, 1.0)));\r\n    float blobY = hash21(vec2(col, 2.0 + floor(uv.y + t * speed)));\r\n    // drip bead\r\n    float bead = exp(-cy * cy * 300.0 - cx * cx * 1200.0) * step(0.5, blobY);\r\n    // tail trailing upward from bead\r\n    float tail = smoothstep(0.08, 0.0, cy) * smoothstep(0.006, 0.0, abs(cx)) * step(0.5, blobY);\r\n    return clamp(bead * 2.0 + tail * 0.5, 0.0, 1.0);\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.xy;\r\n\r\n    // blurry city lights using fbm\r\n    vec2 bgUV = uv * 3.0 + vec2(0.5, 0.2);\r\n    float city = fbm(bgUV);\r\n    vec3 bg = palette(city, vec3(0.1, 0.1, 0.2), vec3(0.2, 0.2, 0.3), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.15, 0.4));\r\n    // punch some bright point lights through\r\n    for (int i = 0; i < 12; i++) {\r\n        float fi = float(i);\r\n        vec2 lp = vec2(hash21(vec2(fi, 0.0)), hash21(vec2(fi, 1.0)) * 0.9 + 0.05);\r\n        float d = length(uv - lp);\r\n        float r = 0.04 + hash21(vec2(fi, 2.0)) * 0.06;\r\n        float g = exp(-d * d / max(r * r * 0.5, 1e-5));\r\n        vec3 lc = mix(vec3(1.0, 0.6, 0.1), vec3(0.4, 0.7, 1.0), hash21(vec2(fi, 3.0)));\r\n        bg += lc * g * 0.7;\r\n    }\r\n    bg = clamp(bg, 0.0, 1.0);\r\n\r\n    // layered drip columns at different densities\r\n    float d1 = 0.0;\r\n    for (float c = 0.0; c < 20.0; c++) {\r\n        d1 += drip(uv, c, iTime);\r\n    }\r\n    float d2 = 0.0;\r\n    for (float c = 0.0; c < 15.0; c++) {\r\n        d2 += drip(uv * vec2(0.7, 1.2) + vec2(0.23, 0.0), c + 20.0, iTime * 0.8);\r\n    }\r\n    float wetMask = clamp(d1 + d2, 0.0, 1.0);\r\n\r\n    vec3 wetColor = vec3(0.3, 0.4, 0.65) + bg * 0.55;\r\n    vec3 col = mix(bg, wetColor, wetMask * 0.9);\r\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "rain",
+    "prompt": "rain on a night window with city bokeh behind it",
+    "i": 5,
+    "strategy": "raymarched rain volume",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p);\r\n    vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i);\r\n    float b = hash21(i + vec2(1.0, 0.0));\r\n    float c = hash21(i + vec2(0.0, 1.0));\r\n    float d = hash21(i + vec2(1.0, 1.0));\r\n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318 * (c * t + d));\r\n}\r\n\r\n// density of rain particles at a point in 3D (collapsed to xz + falling y)\r\nfloat rainDensity(vec3 p) {\r\n    // periodic falling particles: tile xz finely, check if near a streak\r\n    vec2 cell = floor(p.xz * 8.0);\r\n    float h = hash21(cell * 3.17);\r\n    float fallOffset = h;\r\n    float yPhase = fract(p.y * 0.5 + iTime * (0.8 + h * 0.6) + fallOffset);\r\n    // streak: thin in xz, elongated in y\r\n    vec2 xzOff = fract(p.xz * 8.0) - 0.5;\r\n    float streak = exp(-dot(xzOff, xzOff) * 120.0) * smoothstep(0.12, 0.0, yPhase) * step(0.4, h);\r\n    return streak;\r\n}\r\n\r\n// city light at world xz\r\nvec3 cityLight(vec2 xz) {\r\n    vec3 col = vec3(0.0);\r\n    for (int i = 0; i < 10; i++) {\r\n        float fi = float(i);\r\n        vec2 lp = vec2(hash21(vec2(fi, 10.0)) * 4.0 - 2.0, hash21(vec2(fi, 20.0)) * 4.0 - 2.0);\r\n        float d = length(xz - lp);\r\n        float r = 0.3 + hash21(vec2(fi, 30.0)) * 0.5;\r\n        float g = exp(-d * d / max(r * r, 1e-5));\r\n        vec3 lc = mix(vec3(1.0, 0.55, 0.1), vec3(0.4, 0.7, 1.0), hash21(vec2(fi, 40.0)));\r\n        col += lc * g * 0.4;\r\n    }\r\n    return col;\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - iResolution.xy * 0.5) / iResolution.y;\r\n\r\n    // simple perspective ray: looking forward along -z\r\n    vec3 ro = vec3(0.0, 2.0, 0.0);\r\n    vec3 rd = normalize(vec3(uv.x, uv.y - 0.1, 1.2));\r\n\r\n    // background: city lights on a far plane\r\n    float tFar = 8.0;\r\n    vec2 farXZ = (ro + rd * tFar).xz;\r\n    vec3 bg = cityLight(farXZ);\r\n    bg += vec3(0.0, 0.02, 0.08);\r\n    bg = clamp(bg, 0.0, 1.0);\r\n\r\n    // march through rain volume\r\n    vec3 accum = vec3(0.0);\r\n    float alpha = 0.0;\r\n    float tStep = tFar / 40.0;\r\n    for (int s = 0; s < 40; s++) {\r\n        float t = (float(s) + 0.5) * tStep;\r\n        vec3 p = ro + rd * t;\r\n        float dens = rainDensity(p);\r\n        if (dens > 0.001) {\r\n            // rain strand color: reflect nearby city lights faintly\r\n            vec3 rc = vec3(0.5, 0.6, 0.8) + cityLight(p.xz) * 0.3;\r\n            float dt = dens * 0.9 * (1.0 - alpha);\r\n            accum += rc * dt;\r\n            alpha += dt;\r\n            if (alpha > 0.95) break;\r\n        }\r\n    }\r\n\r\n    vec3 col = accum + bg * (1.0 - clamp(alpha, 0.0, 1.0));\r\n    fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 0,
+    "strategy": "sdf stitch grid",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i + vec2(1,0)),\r\n          c = hash21(i + vec2(0,1)), d = hash21(i + vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n\r\nfloat sdRoundBox(vec2 p, vec2 b, float r) {\r\n    vec2 q = abs(p) - b + r;\r\n    return length(max(q,0.0)) + min(max(q.x,q.y),0.0) - r;\r\n}\r\n\r\nfloat stitchSDF(vec2 p) {\r\n    float d1 = length(p - vec2(0.0, 0.22)) - 0.28;\r\n    float d2 = length(p - vec2(0.0,-0.22)) - 0.28;\r\n    float body = sdRoundBox(p, vec2(0.07, 0.44), 0.06);\r\n    return min(min(d1,d2), body);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5*iResolution.xy) / iResolution.y;\r\n    float breathe = 1.0 + 0.07*sin(iTime*1.1);\r\n    uv /= breathe;\r\n\r\n    float cW = 0.115, cH = 0.155;\r\n    vec2 grid = uv / vec2(cW, cH);\r\n    float row = floor(grid.y);\r\n    float rowOff = mod(row, 2.0)*0.5;\r\n    vec2 id = floor(grid + vec2(rowOff, 0.0));\r\n    vec2 local = (fract(grid + vec2(rowOff, 0.0)) - 0.5) * vec2(cW, cH);\r\n\r\n    float fuzz = noise(fragCoord*0.9 + iTime*0.4)*0.008;\r\n    float d = stitchSDF(local / 0.048) * 0.048 + fuzz;\r\n\r\n    float rnd = hash21(id*3.7 + 11.1);\r\n    vec3 woolLight = vec3(0.93, 0.86, 0.73) + rnd*0.04;\r\n    vec3 woolDark  = vec3(0.42, 0.28, 0.18);\r\n    float inner = smoothstep(0.002, 0.008, -d);\r\n    float shadow = smoothstep(0.0, 0.018, d);\r\n    vec3 col = mix(woolDark*0.5, mix(woolDark, woolLight, inner), 1.0-shadow*0.55);\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 1,
+    "strategy": "fbm domain warp",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i+vec2(1,0)),\r\n          c = hash21(i+vec2(0,1)), d = hash21(i+vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0, a = 0.5;\r\n    for (int i = 0; i < 5; i++) { v += a*noise(p); p *= 2.0; a *= 0.5; }\r\n    return v;\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.y * 4.5;\r\n    float lung = 0.09*sin(iTime*0.85);\r\n\r\n    // Two-level warp: first warp, then warp the warped coords again\r\n    vec2 q = vec2(fbm(uv + vec2(1.3, 0.7) + lung),\r\n                  fbm(uv + vec2(8.2, 3.4) - lung));\r\n    vec2 r = vec2(fbm(uv + 1.8*q + vec2(1.7, 9.2) + 0.15*iTime),\r\n                  fbm(uv + 1.8*q + vec2(8.3, 2.8) - 0.15*iTime));\r\n    float f = fbm(uv + 2.2*r);\r\n\r\n    // Fiber streaks along dominant axis\r\n    float streak = fbm(uv * vec2(0.5, 5.0) + vec2(0.0, iTime*0.12));\r\n    f = mix(f, streak, 0.25);\r\n\r\n    vec3 col = palette(f + 0.05*sin(iTime*0.6),\r\n        vec3(0.72, 0.56, 0.40),\r\n        vec3(0.22, 0.16, 0.10),\r\n        vec3(1.0, 1.0, 1.0),\r\n        vec3(0.05, 0.15, 0.25));\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 2,
+    "strategy": "voronoi yarn cross-section",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nvec2 hash22(vec2 p) {\r\n    return vec2(hash21(p), hash21(p + vec2(73.1, 21.9)));\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.y;\r\n    float breathe = 1.0 + 0.055*sin(iTime*1.05);\r\n    uv *= 9.0 * breathe;\r\n\r\n    vec2 gi = floor(uv), gf = fract(uv);\r\n    float d1 = 9.0, d2 = 9.0;\r\n    vec2 minId = vec2(0.0);\r\n    float minD1 = 9.0;\r\n\r\n    for (int y = -1; y <= 1; y++) {\r\n        for (int x = -1; x <= 1; x++) {\r\n            vec2 nb = vec2(float(x), float(y));\r\n            vec2 cid = gi + nb;\r\n            vec2 rp = hash22(cid);\r\n            rp = 0.5 + 0.42*sin(iTime*0.45 + 6.28318*rp);\r\n            float dist = length(nb + rp - gf);\r\n            if (dist < d1) { d2 = d1; d1 = dist; minId = cid; }\r\n            else if (dist < d2) { d2 = dist; }\r\n        }\r\n    }\r\n\r\n    float edge = d2 - d1;\r\n    float rnd = hash21(minId);\r\n\r\n    // Yarn cross-section: bright highlight at center, darker at edge (twist shading)\r\n    float highlight = 1.0 - smoothstep(0.0, 0.28, d1);\r\n    highlight = pow(highlight, 1.6);\r\n    float groove = smoothstep(0.03, 0.10, edge);\r\n\r\n    vec3 yarnCol = palette(rnd,\r\n        vec3(0.60, 0.42, 0.52),\r\n        vec3(0.18, 0.12, 0.10),\r\n        vec3(1.0, 1.0, 1.0),\r\n        vec3(rnd, rnd*0.4, 0.3));\r\n    yarnCol = yarnCol*(0.45 + 0.65*highlight) * (groove*0.65 + 0.35);\r\n    yarnCol = clamp(yarnCol, 0.0, 1.0);\r\n    fragColor = vec4(yarnCol, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 3,
+    "strategy": "polar radial stitches",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i+vec2(1,0)),\r\n          c = hash21(i+vec2(0,1)), d = hash21(i+vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5*iResolution.xy) / iResolution.y;\r\n    float breathe = 1.0 + 0.08*sin(iTime*0.9);\r\n    float r = length(uv) / breathe;\r\n    float a = atan(uv.y, uv.x);\r\n\r\n    float rings = 13.0;\r\n    float spokes = 26.0;\r\n    float rowIdx = floor(r * rings);\r\n    float rowOff = mod(rowIdx, 2.0) * (3.14159/spokes);\r\n    float normA = (a + rowOff + 3.14159) / (2.0*3.14159);\r\n\r\n    vec2 local = vec2(fract(normA * spokes) - 0.5,\r\n                      fract(r * rings) - 0.5);\r\n\r\n    // Stitch shape: two lobes + body column\r\n    float lobe1 = length(local - vec2(0.0, 0.18)) - 0.20;\r\n    float lobe2 = length(local - vec2(0.0,-0.18)) - 0.20;\r\n    float body  = abs(local.x) - 0.065;\r\n    float stitch = min(min(lobe1, lobe2), body);\r\n\r\n    float fuzz = noise(uv*70.0 + iTime*0.35)*0.022;\r\n    stitch += fuzz;\r\n\r\n    vec3 yarnCol = palette(r*0.4 + 0.07*sin(iTime*0.65),\r\n        vec3(0.48, 0.19, 0.24),\r\n        vec3(0.14, 0.07, 0.05),\r\n        vec3(1.0, 2.0, 1.0),\r\n        vec3(0.0, 0.5, 0.1));\r\n\r\n    float lit = smoothstep(0.012, 0.0, stitch);\r\n    vec3 col = mix(yarnCol*0.28, yarnCol, lit);\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 4,
+    "strategy": "raymarched fiber volume",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i+vec2(1,0)),\r\n          c = hash21(i+vec2(0,1)), d = hash21(i+vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n\r\nfloat fbm(vec2 p) {\r\n    float v = 0.0, a = 0.5;\r\n    for (int i = 0; i < 5; i++) { v += a*noise(p); p *= 2.0; a *= 0.5; }\r\n    return v;\r\n}\r\n\r\nfloat woolDensity(vec3 p) {\r\n    float coarse = fbm(p.xy*2.5 + vec2(p.z*0.6, 0.0));\r\n    float fineH  = noise(p.xy*9.0 + vec2(0.0, p.z*3.0));\r\n    float fineV  = noise(p.yx*9.0 + vec2(p.z*3.0, 0.0));\r\n    return coarse*0.65 + fineH*0.2 + fineV*0.15;\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = (fragCoord - 0.5*iResolution.xy) / iResolution.y;\r\n    vec3 ro = vec3(uv, 0.0);\r\n    vec3 rd = vec3(0.0, 0.0, 1.0);\r\n\r\n    float lung = 0.10*sin(iTime*0.95);\r\n    float transmit = 1.0;\r\n    vec3 col = vec3(0.0);\r\n    float stepSz = 0.055;\r\n\r\n    for (int i = 0; i < 40; i++) {\r\n        float t = float(i)*stepSz;\r\n        vec3 p = ro + rd*t;\r\n        p.z += lung;\r\n        float d = woolDensity(p);\r\n        float alpha = clamp((d - 0.44)*3.2, 0.0, 1.0)*stepSz*5.0;\r\n        vec3 wc = palette(d + p.z*0.25 + 0.05*sin(iTime*0.5),\r\n            vec3(0.78, 0.66, 0.52),\r\n            vec3(0.18, 0.13, 0.09),\r\n            vec3(1.0, 1.0, 1.4),\r\n            vec3(0.1, 0.2, 0.0));\r\n        col += transmit*alpha*wc;\r\n        transmit *= (1.0 - alpha);\r\n        if (transmit < 0.01) break;\r\n    }\r\n    col += transmit*vec3(0.11, 0.09, 0.08);\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  },
+  {
+    "slug": "wool",
+    "prompt": "knitted wool texture slowly breathing",
+    "i": 5,
+    "strategy": "wave interference weave",
+    "source": "float hash21(vec2 p) {\r\n    p = fract(p * vec2(123.34, 456.21));\r\n    p += dot(p, p + 45.32);\r\n    return fract(p.x * p.y);\r\n}\r\n\r\nfloat noise(vec2 p) {\r\n    vec2 i = floor(p); vec2 f = fract(p);\r\n    f = f * f * (3.0 - 2.0 * f);\r\n    float a = hash21(i), b = hash21(i+vec2(1,0)),\r\n          c = hash21(i+vec2(0,1)), d = hash21(i+vec2(1,1));\r\n    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);\r\n}\r\n\r\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\r\n    return a + b * cos(6.28318*(c*t+d));\r\n}\r\n\r\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord) {\r\n    vec2 uv = fragCoord / iResolution.y * 11.0;\r\n    float breathe = 1.0 + 0.075*sin(iTime*0.9);\r\n    vec2 buv = uv * breathe;\r\n\r\n    // Horizontal yarn: sinusoidal centerline perturbed by low-freq noise\r\n    float hPert = noise(vec2(buv.y*0.28, iTime*0.35))*1.6;\r\n    float hWave = sin(buv.y*6.28318 + hPert);\r\n    float hYarn = smoothstep(0.62, 0.82, abs(hWave));\r\n\r\n    // Vertical yarn: same idea, rotated\r\n    float vPert = noise(vec2(buv.x*0.28, iTime*0.35 + 5.0))*1.6;\r\n    float vWave = sin(buv.x*6.28318 + vPert);\r\n    float vYarn = smoothstep(0.62, 0.82, abs(vWave));\r\n\r\n    // Over-under: which yarn sits on top at each grid crossing\r\n    float cellX = mod(floor(buv.x), 2.0);\r\n    float cellY = mod(floor(buv.y), 2.0);\r\n    float onTop = mod(cellX + cellY, 2.0);  // 0=horizontal on top, 1=vertical\r\n\r\n    float hFront = hYarn * (1.0 - onTop*0.72);\r\n    float vFront = vYarn * (onTop*0.72 + 0.28);\r\n\r\n    vec3 colH = palette(buv.y*0.07 + iTime*0.04,\r\n        vec3(0.62, 0.46, 0.34), vec3(0.14,0.09,0.07),\r\n        vec3(1,1,1), vec3(0.0,0.1,0.2));\r\n    vec3 colV = palette(buv.x*0.07 + iTime*0.04 + 0.35,\r\n        vec3(0.44, 0.34, 0.56), vec3(0.11,0.07,0.14),\r\n        vec3(1,1,1), vec3(0.3,0.0,0.1));\r\n\r\n    float wH = hFront, wV = vFront;\r\n    float tot = wH + wV + 0.001;\r\n    vec3 col = (colH*wH + colV*wV) / tot;\r\n    col *= 0.72 + 0.30*max(wH, wV);\r\n\r\n    // Fuzz\r\n    col += noise(uv*4.5 + iTime*0.18)*0.045;\r\n    col = clamp(col, 0.0, 1.0);\r\n    fragColor = vec4(col, 1.0);\r\n}",
+    "status": "ok",
+    "log": ""
+  }
+]
+</script>
+<script type="module">
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const VS = `#version 300 es
+void main(){ vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
+  gl_Position = vec4(p*2.0-1.0, 0.0, 1.0); }`;
+const wrap = src => `#version 300 es
+precision highp float;
+uniform float iTime;
+uniform vec3  iResolution;
+out vec4 outColor;
+${src}
+void main(){ mainImage(outColor, gl_FragCoord.xy); }`;
+
+// ---- build DOM ----
+const body = document.getElementById('body');
+let html = '', bySlug = {};
+for (const c of DATA) (bySlug[c.slug] ??= []).push(c);
+for (const [slug, list] of Object.entries(bySlug)) {
+  html += `<h2 id="${slug}">${slug}</h2><p class=pr>${esc(list[0].prompt)}</p>`;
+  for (const c of list) {
+    const ok = c.status === 'ok';
+    html += `<div class=c><div class=hd><span class=n>#${c.i}</span>
+      <span class=s>${esc(c.strategy)}</span>
+      <span class="st ${ok?'ok':'bad'}">${c.status}</span></div><div>`;
+    if (ok) {
+      html += `<canvas class=live data-k="${slug}-${c.i}"></canvas>
+        <div class=cap>live, click to enlarge</div>
+        <div class=strip data-slug="${slug}" data-i="${c.i}">` +
+        [0,1,2].map(t=>`<img src="${slug}/r${c.i}/t${t}.png" data-t="${t}" title="captured t=${t}s">`).join('') +
+        `</div><div class=m data-for="${slug}-${c.i}">measuring...</div>`;
+    }
+    if (c.log) html += `<div class=log>${esc(c.log)}</div>`;
+    html += `</div><div><pre>${esc(c.source)}</pre></div></div>`;
+  }
+}
+body.innerHTML = html;
+
+// ---- live WebGL, shared clock, only while visible ----
+const progs = new Map();
+function init(cv, src) {
+  const gl = cv.getContext('webgl2', {preserveDrawingBuffer:false});
+  if (!gl) return null;
+  const mk = (t,s) => { const sh=gl.createShader(t); gl.shaderSource(sh,s); gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+  try {
+    const p = gl.createProgram();
+    gl.attachShader(p, mk(gl.VERTEX_SHADER, VS));
+    gl.attachShader(p, mk(gl.FRAGMENT_SHADER, wrap(src)));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    gl.useProgram(p);
+    return {gl,p,t:gl.getUniformLocation(p,'iTime'),r:gl.getUniformLocation(p,'iResolution')};
+  } catch(e) {
+    const d=document.createElement('div'); d.className='log';
+    d.textContent='live compile failed: '+e.message; cv.replaceWith(d); return null;
+  }
+}
+const active = new Set();
+document.querySelectorAll('canvas.live').forEach(cv =>
+  new IntersectionObserver(es => es.forEach(e => {
+    const k = cv.dataset.k;
+    if (e.isIntersecting) {
+      if (!progs.has(k)) {
+        const c = DATA.find(x => `${x.slug}-${x.i}` === k);
+        cv.width = 400; cv.height = 400;
+        const g = init(cv, c.source); if (!g) return; progs.set(k, g);
+      }
+      active.add(k);
+    } else active.delete(k);
+  }), {rootMargin:'300px'}).observe(cv));
+
+let playing = true, speed = 1, clock = 0, last = performance.now();
+const ppBtn=document.getElementById('pp'), spEl=document.getElementById('sp'),
+      spv=document.getElementById('spv'), clk=document.getElementById('clock');
+ppBtn.onclick = () => { playing=!playing; ppBtn.textContent = playing?'Pause':'Play'; };
+spEl.oninput = () => { speed=+spEl.value; spv.textContent=speed.toFixed(1)+'x'; };
+document.getElementById('rw').onclick = () => { clock=0; };
+function frame(now) {
+  const dt = (now-last)/1000; last = now;
+  if (playing) clock += dt*speed;
+  clk.textContent = 't = '+clock.toFixed(2)+'s';
+  for (const k of active) {
+    const g = progs.get(k); if (!g) continue;
+    g.gl.viewport(0,0,400,400);
+    g.gl.uniform1f(g.t, clock);
+    g.gl.uniform3f(g.r, 400, 400, 1);
+    g.gl.drawArrays(g.gl.TRIANGLES, 0, 3);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---- click to enlarge ----
+const dlg = document.createElement('dialog');
+dlg.innerHTML = '<canvas></canvas>';
+document.body.appendChild(dlg);
+const big = dlg.querySelector('canvas');
+let bigG = null, bigK = null;
+document.addEventListener('click', e => {
+  const cv = e.target.closest('canvas.live'); if (!cv) return;
+  bigK = cv.dataset.k;
+  const c = DATA.find(x => `${x.slug}-${x.i}` === bigK);
+  big.width = 900; big.height = 900;
+  bigG = init(big, c.source);
+  dlg.showModal();
+});
+dlg.addEventListener('click', () => { dlg.close(); bigG = null; });
+(function bigFrame(){ if (bigG && dlg.open) {
+    bigG.gl.viewport(0,0,900,900);
+    bigG.gl.uniform1f(bigG.t, clock);
+    bigG.gl.uniform3f(bigG.r, 900, 900, 1);
+    bigG.gl.drawArrays(bigG.gl.TRIANGLES, 0, 3);
+  } requestAnimationFrame(bigFrame); })();
+
+// ---- prefilter metrics from the captured frames ----
+const lum = d => { let s=0, n=d.length/4, v=new Float64Array(n);
+  for(let i=0,j=0;i<d.length;i+=4,j++){ v[j]=(0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2])/255; s+=v[j]; }
+  return {v, mean:s/n}; };
+async function px(img){ await img.decode();
+  const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+  const x=c.getContext('2d',{willReadFrequently:true}); x.drawImage(img,0,0);
+  return x.getImageData(0,0,c.width,c.height).data; }
+for (const strip of document.querySelectorAll('.strip')) {
+  const out = document.querySelector(`.m[data-for="${strip.dataset.slug}-${strip.dataset.i}"]`);
+  try {
+    const [d0,d1,d2] = await Promise.all([...strip.querySelectorAll('img')].map(px));
+    const {v,mean} = lum(d1);
+    let acc=0; for (const x of v) acc += (x-mean)**2;
+    const sd = Math.sqrt(acc/v.length);
+    let diff=0; for (let i=0;i<d0.length;i+=4)
+      diff += Math.abs(d0[i]-d2[i])+Math.abs(d0[i+1]-d2[i+1])+Math.abs(d0[i+2]-d2[i+2]);
+    const md = diff/(d0.length/4*3*255);
+    const fk = sd>=0.02, mk = md>=0.01;
+    out.innerHTML = `<span>flat <b class="${fk?'p':'f2'}">${sd.toFixed(4)}</b> ${fk?'pass':'FLAT'}</span>`
+      + `<span>motion <b class="${mk?'p':'f2'}">${md.toFixed(4)}</b> ${mk?'pass':'STATIC'}</span>`
+      + `<span>prefilter <b class="${fk&&mk?'p':'f2'}">${fk&&mk?'survives':'scores 0'}</b></span>`;
+  } catch(e) { out.textContent = 'metrics need http (canvas tainted on file://)'; }
+}
+</script>

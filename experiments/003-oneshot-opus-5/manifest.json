@@ -1,0 +1,55 @@
+{
+  "id": "003-oneshot-opus-5",
+  "model": "claude-opus-5",
+  "git": "0ce10d7",
+  "runs": {
+    "ink": {
+      "prompt": "ink dropping into water, slow, black on paper white",
+      "at": "2026-09-12T11:52:37Z",
+      "costUSD": 0.59036175,
+      "genSeconds": 125
+    },
+    "rain": {
+      "prompt": "rain on a night window with city bokeh behind it",
+      "at": "2026-09-12T11:52:24Z",
+      "costUSD": 0.37102875,
+      "genSeconds": 137
+    },
+    "glass": {
+      "prompt": "stained glass window with the sun moving behind it",
+      "at": "2026-09-12T11:53:06Z",
+      "costUSD": 0.3700875,
+      "genSeconds": 96
+    },
+    "aurora": {
+      "prompt": "aurora over a dark ridge, slow, green to violet",
+      "at": "2026-09-12T11:52:54Z",
+      "costUSD": 0.33100874999999996,
+      "genSeconds": 108
+    },
+    "metal": {
+      "prompt": "molten metal cooling, dark crust forming, orange cracks",
+      "at": "2026-09-12T11:53:12Z",
+      "costUSD": 0.13935314999999998,
+      "genSeconds": 90
+    },
+    "wool": {
+      "prompt": "knitted wool texture slowly breathing",
+      "at": "2026-09-12T11:52:06Z",
+      "costUSD": 0.38413125000000004,
+      "genSeconds": 156
+    },
+    "jelly": {
+      "prompt": "bioluminescent jellyfish pulsing in deep water",
+      "at": "2026-09-12T11:52:12Z",
+      "costUSD": 0.21243315,
+      "genSeconds": 150
+    },
+    "oil": {
+      "prompt": "oil slick on wet asphalt shifting colours",
+      "at": "2026-09-12T11:53:02Z",
+      "costUSD": 0.1480719,
+      "genSeconds": 101
+    }
+  }
+}

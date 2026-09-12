@@ -43,7 +43,7 @@ async function newSession(): Promise<{ server: BrowserServer; browser: Browser; 
 
 // Compile, capture t0/t1/t2, and measure the two things arithmetic knows better
 // than a vision model: whether the image is blank and whether it moves.
-function captureInPage(): { frames: string[]; lumStdDev: number; motion: number } {
+function captureInPage(times: number[]): { frames: string[]; lumStdDev: number; motion: number } {
   const h = window.harness;
   const g = h.gl;
   const w = h.canvas.width;
@@ -56,7 +56,7 @@ function captureInPage(): { frames: string[]; lumStdDev: number; motion: number 
   };
   const frames: string[] = [];
   const bufs: Uint8Array[] = [];
-  for (const t of [0, 1, 2]) {
+  for (const t of times) {
     bufs.push(read(t));
     frames.push(h.canvas.toDataURL("image/png"));
   }
@@ -121,6 +121,17 @@ function toPng(dataUrl: string): Buffer {
   return Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
 }
 
+// Same shape render.js writes, so a batch directory is readable by anything
+// that already reads a single render. `times` is the extra field: it records
+// which seconds these frames are, which is not always 0, 1, 2.
+function writeResult(
+  dir: string,
+  r: { status: Status; frames: string[]; log: string; times: number[] },
+): void {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "result.json"), JSON.stringify(r, null, 2));
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const opts = new Map<string, string>();
@@ -128,7 +139,15 @@ async function main(): Promise<void> {
   const inDir = opts.get("in");
   const outDir = opts.get("out");
   if (!inDir || !outDir) {
-    process.stderr.write("usage: node batch.js --in <dir of .glsl> --out <dir>\n");
+    process.stderr.write("usage: node batch.js --in <dir of .glsl> --out <dir> [--times 0,1,2]\n");
+    process.exit(2);
+  }
+  // Contract §1 fixes the scored frames at 0, 1 and 2 seconds. --times is for
+  // measuring how much a candidate moves over a longer window than that,
+  // which is the difference between a still shader and a deliberately slow one.
+  const times = (opts.get("times") ?? "0,1,2").split(",").map(Number);
+  if (times.length !== 3 || times.some(Number.isNaN)) {
+    process.stderr.write("--times takes three comma separated seconds, e.g. 0,5,10\n");
     process.exit(2);
   }
   mkdirSync(outDir, { recursive: true });
@@ -145,6 +164,7 @@ async function main(): Promise<void> {
     const compiled = await session.page.evaluate((src) => window.harness.compile(src), source);
     if (!compiled.ok) {
       const log = compiled.log.replace(/\0/g, "").trimEnd();
+      writeResult(join(outDir, name), { status: "compile_error", frames: [], log, times });
       entries.push({ name, status: "compile_error", log, lumStdDev: 0, motion: 0, flat: true, still: true });
       cells.push({ dataUrl: null, label: `${name} COMPILE ERROR` });
       console.log(`${name}  compile_error  ${log.split("\n")[0]}`);
@@ -152,7 +172,7 @@ async function main(): Promise<void> {
     }
 
     let timer: NodeJS.Timeout;
-    const work = session.page.evaluate(captureInPage);
+    const work = session.page.evaluate(captureInPage, times);
     const guard = new Promise<null>((res) => {
       timer = setTimeout(() => res(null), FRAME_TIMEOUT_MS);
     });
@@ -162,7 +182,9 @@ async function main(): Promise<void> {
     if (shot === null) {
       work.catch(() => {});
       session.server.kill();
-      entries.push({ name, status: "timeout", log: `exceeded ${FRAME_TIMEOUT_MS} ms`, lumStdDev: 0, motion: 0, flat: true, still: true });
+      const log = `exceeded ${FRAME_TIMEOUT_MS} ms`;
+      writeResult(join(outDir, name), { status: "timeout", frames: [], log, times });
+      entries.push({ name, status: "timeout", log, lumStdDev: 0, motion: 0, flat: true, still: true });
       cells.push({ dataUrl: null, label: `${name} TIMEOUT` });
       console.log(`${name}  timeout`);
       // The browser is wedged, not the batch. Start a fresh one and carry on.
@@ -173,6 +195,7 @@ async function main(): Promise<void> {
     const dir = join(outDir, name);
     mkdirSync(dir, { recursive: true });
     shot.frames.forEach((f, i) => writeFileSync(join(dir, `t${i}.png`), toPng(f)));
+    writeResult(dir, { status: "ok", frames: shot.frames.map((_, i) => `t${i}.png`), log: "", times });
 
     const flat = shot.lumStdDev < 0.02;
     const still = shot.motion < 0.01;
