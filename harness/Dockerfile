@@ -6,7 +6,10 @@ FROM mcr.microsoft.com/playwright:v1.63.0-noble AS build
 WORKDIR /harness
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY tsconfig.json render.ts snapshot.ts ./
+# Daytona builds the upload context by parsing COPY targets out of this file, so
+# a glob uploads nothing and `tsc` then fails with "file not found" on every
+# entry. These must be listed literally and must match tsconfig's `files`.
+COPY tsconfig.json harness-window.d.ts render.ts snapshot.ts verify-sandbox.ts batch.ts ./
 RUN npx tsc
 
 FROM mcr.microsoft.com/playwright:v1.63.0-noble

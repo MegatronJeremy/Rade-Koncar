@@ -2,6 +2,7 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { Hero } from "./components/Hero";
 import { SEEDED_RUN } from "./fixtures";
 import { LiveApp } from "./LiveApp";
 import "./styles.css";
@@ -22,7 +23,10 @@ const convex = typeof convexUrl === "string" && convexUrl.length > 0
 createRoot(root).render(
   <StrictMode>
     {convex === undefined ? (
-      <App run={SEEDED_RUN} isSample />
+      <>
+        <Hero state="absent" submit={async () => undefined} />
+        <App run={SEEDED_RUN} isSample />
+      </>
     ) : (
       <ConvexProvider client={convex}>
         <LiveApp />

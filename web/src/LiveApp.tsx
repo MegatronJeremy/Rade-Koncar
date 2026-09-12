@@ -1,7 +1,9 @@
 import { useQuery } from "convex/react";
 import { useRef, useState } from "react";
+import { useOrchestrator } from "./hooks/useOrchestrator";
 import { api } from "../convex/_generated/api";
 import { App } from "./App";
+import { Hero } from "./components/Hero";
 import { SampleGallery } from "./components/SampleGallery";
 import { SEEDED_RUN } from "./fixtures";
 import type { Run } from "./types";
@@ -35,6 +37,7 @@ export const LiveApp = (): React.JSX.Element => {
   const live = useQuery(api.runs.latestRun);
   const pinned = useQuery(api.runs.pinnedRun);
   const [chosenId, setChosenId] = useState<string | undefined>(undefined);
+  const orchestrator = useOrchestrator();
 
   /*
    * The gallery owns its own query so that a deployment missing sampleRuns
@@ -57,6 +60,7 @@ export const LiveApp = (): React.JSX.Element => {
 
   return (
     <>
+      <Hero state={orchestrator.state} submit={orchestrator.submit} />
       <SampleGallery
         selectedId={liveRunning ? undefined : (chosen?.id ?? fromConvex?.id)}
         onPick={setChosenId}

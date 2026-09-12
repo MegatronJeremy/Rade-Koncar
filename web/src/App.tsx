@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
 import { CandidateDetail } from "./components/CandidateDetail";
 import { Column } from "./components/Column";
-import { PromptBox } from "./components/PromptBox";
 import { indexCandidates } from "./fixtures";
 import { useFrameTick } from "./hooks/useFrameTick";
-import { useOrchestrator } from "./hooks/useOrchestrator";
 import type { Candidate, Generation, Run } from "./types";
 
 export interface AppProps {
@@ -24,7 +22,6 @@ const bestTotal = (generation: Generation): number =>
 
 export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
   const frame = useFrameTick();
-  const orchestrator = useOrchestrator();
   const [shownGenerationId, setShownGenerationId] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<Candidate | undefined>(undefined);
 
@@ -70,21 +67,6 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
 
   return (
     <>
-      <header className="masthead">
-        <h1 className="wordmark">Shader Arena</h1>
-        <p className="thesis">
-          An AI writes six small programs that each try to draw your description. Every one
-          runs in its own sandbox, gets screenshotted, and is scored on what it actually
-          drew. The best two survive and breed. Three rounds.
-        </p>
-        <p className="legend">
-          Each tile is one shader. It is scored out of 30 by a vision model looking at three
-          rendered frames: palette, motion and subject, 10 each. Anything that renders flat or
-          never moves is rejected on the pixels first, without a vision call.
-        </p>
-        <PromptBox state={orchestrator.state} submit={orchestrator.submit} />
-      </header>
-
       <div className="run-bar">
         <span className={`run-state${live ? " is-live" : ""}`}>
           {live ? "Running now" : isSample ? "Sample run" : "Saved run"}
@@ -102,6 +84,12 @@ export const App = ({ run, isSample }: AppProps): React.JSX.Element => {
           </span>
         </span>
       </div>
+
+      <p className="legend">
+        Each tile is one shader, scored out of 30 by a vision model looking at three rendered
+        frames: palette, motion and subject, 10 each. Anything that renders flat or never moves
+        is rejected on the pixels first, without a vision call.
+      </p>
 
       <main className="sheet">
         <Column
