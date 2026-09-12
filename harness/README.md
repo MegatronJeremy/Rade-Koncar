@@ -32,9 +32,26 @@ Verified no Chromium survives a timeout run.
 
 ## Sandbox
 
-Snapshot name: **`shader-arena-harness`** (2.36 GB, 2 CPU / 4 GB RAM / 10 GB disk).
-Set `DAYTONA_SNAPSHOT=shader-arena-harness`. Working directory in the sandbox is
-`/harness`, so the command is:
+Snapshot name: **`shader-arena-harness-1g`** (1 CPU / 1 GiB RAM / 5 GiB disk).
+Set `DAYTONA_SNAPSHOT=shader-arena-harness-1g`.
+
+Size is set by the organisation's cap of **10 GiB of concurrent sandbox memory**, not
+by what Chromium wants. At 4 GiB each, `createPool` fails outright on a pool of two:
+
+```
+DaytonaValidationError: Total memory limit exceeded. Maximum allowed: 10GiB.
+```
+
+At 1 GiB a pool of six creates in 6.3 s and leaves headroom for a second person
+running at the same time. Raising it costs parallelism, not speed: Chromium on
+SwiftShader at 256x256 fits comfortably, and `--disable-dev-shm-usage` keeps it off
+`/dev/shm`. One CPU roughly triples compile time (82 ms to 306 ms on `bad.glsl`) and
+leaves frame times unchanged.
+
+`shader-arena-harness` at 2 CPU / 4 GiB still exists and still renders, but cannot
+support a pool of more than two. Prefer the smaller one.
+
+Working directory in the sandbox is `/harness`, so the command is:
 
 ```bash
 node render.js --in <uploaded>.glsl --out out/<id>

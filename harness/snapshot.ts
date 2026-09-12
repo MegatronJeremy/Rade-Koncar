@@ -26,7 +26,12 @@ async function main(): Promise<void> {
     {
       name,
       image: Image.fromDockerfile("Dockerfile"),
-      resources: { cpu: 2, memory: 4, disk: 10 },
+      // The organisation is capped at 10 GiB of concurrent sandbox memory and a
+      // run holds POOL_SIZE at once, so 4 GiB each fails to create a pool of
+      // two. Chromium on SwiftShader at 256x256 needs far less: measured peak
+      // is well under 1 GiB, and --disable-dev-shm-usage keeps it off /dev/shm.
+      // Raising this costs parallelism, not speed.
+      resources: { cpu: 1, memory: 1, disk: 5 },
     },
     { onLogs: (chunk) => process.stdout.write(chunk.endsWith("\n") ? chunk : chunk + "\n") },
   );
