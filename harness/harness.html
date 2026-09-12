@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shader Arena harness</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 16px;
+    background: #0d0f12; color: #d7dce2;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start;
+  }
+  h1 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: #8fa3b8; }
+  textarea {
+    width: 100%; height: 62vh; box-sizing: border-box;
+    background: #14171c; color: #d7dce2; border: 1px solid #262b33; border-radius: 4px;
+    padding: 10px; font: inherit; resize: vertical; tab-size: 4;
+  }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  button {
+    background: #1f6feb; color: #fff; border: 0; border-radius: 4px;
+    padding: 6px 14px; font: inherit; cursor: pointer;
+  }
+  button.secondary { background: #262b33; color: #d7dce2; }
+  button:disabled { opacity: .5; cursor: default; }
+  canvas { width: 256px; height: 256px; display: block; background: #000; border: 1px solid #262b33; }
+  .frames { display: flex; gap: 8px; flex-wrap: wrap; }
+  .frame { text-align: center; color: #7d8794; font-size: 11px; }
+  .frame img { width: 96px; height: 96px; display: block; border: 1px solid #262b33; background: #000; }
+  #log {
+    white-space: pre-wrap; background: #14171c; border: 1px solid #262b33; border-radius: 4px;
+    padding: 8px; min-height: 40px; max-height: 30vh; overflow: auto; color: #9aa5b1;
+  }
+  #log.error { color: #ff7b72; border-color: #5d2a26; }
+  #log.ok { color: #7ee787; }
+</style>
+</head>
+<body>
+
+<div>
+  <h1>candidate source: defines <code>void mainImage(out vec4 fragColor, in vec2 fragCoord)</code></h1>
+  <textarea id="src" spellcheck="false"></textarea>
+  <div class="row">
+    <button id="run">Run</button>
+    <button id="load" class="secondary">Load fixtures/good.glsl</button>
+    <label class="row" style="margin:0; gap:4px">
+      <input type="checkbox" id="animate"> animate (preview only)
+    </label>
+  </div>
+</div>
+
+<div>
+  <h1>t = <span id="tlabel">0.0</span></h1>
+  <canvas id="gl" width="256" height="256"></canvas>
+  <div class="row" style="margin-bottom:8px">
+    <input id="scrub" type="range" min="0" max="4" step="0.01" value="0" style="flex:1">
+  </div>
+  <h1>captured frames</h1>
+  <div class="frames" id="frames"></div>
+  <h1>log</h1>
+  <div id="log">idle</div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const WRAPPER_HEAD = `#version 300 es
+precision highp float;
+uniform float iTime;
+uniform vec3  iResolution;
+out vec4 outColor;
+#line 1
+`;
+  const WRAPPER_TAIL = `
+void main() { mainImage(outColor, gl_FragCoord.xy); }
+`;
+
+  const VERT = `#version 300 es
+void main() {
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", {
+    preserveDrawingBuffer: true,
+    antialias: false,
+    alpha: false,
+    premultipliedAlpha: false,
+    depth: false,
+    stencil: false,
+    powerPreference: "high-performance",
+    failIfMajorPerformanceCaveat: false
+  });
+
+  if (!gl) {
+    document.getElementById("log").textContent = "no webgl2 context";
+    window.harness = { ready: false, error: "no webgl2 context" };
+    return;
+  }
+
+  let program = null;
+  let uTime = null;
+  let uRes = null;
+
+  const vao = gl.createVertexArray();
+
+  function compileStage(type, source) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(sh) || "unknown compile error";
+      gl.deleteShader(sh);
+      return { ok: false, log };
+    }
+    return { ok: true, shader: sh };
+  }
+
+  // Returns { ok, log, ms }. Never throws. `log` carries the compiler text on failure.
+  function compile(candidateSource) {
+    const t0 = performance.now();
+
+    if (program) { gl.deleteProgram(program); program = null; }
+
+    const vs = compileStage(gl.VERTEX_SHADER, VERT);
+    if (!vs.ok) return { ok: false, log: "internal vertex shader: " + vs.log, ms: performance.now() - t0 };
+
+    const fs = compileStage(gl.FRAGMENT_SHADER, WRAPPER_HEAD + candidateSource + WRAPPER_TAIL);
+    if (!fs.ok) {
+      gl.deleteShader(vs.shader);
+      return { ok: false, log: fs.log, ms: performance.now() - t0 };
+    }
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs.shader);
+    gl.attachShader(prog, fs.shader);
+    gl.linkProgram(prog);
+    gl.deleteShader(vs.shader);
+    gl.deleteShader(fs.shader);
+
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(prog) || "unknown link error";
+      gl.deleteProgram(prog);
+      return { ok: false, log, ms: performance.now() - t0 };
+    }
+
+    program = prog;
+    uTime = gl.getUniformLocation(program, "iTime");
+    uRes = gl.getUniformLocation(program, "iResolution");
+    return { ok: true, log: "", ms: performance.now() - t0 };
+  }
+
+  // One explicit draw at an explicit t. No animation loop, no wall clock: the same
+  // source must produce byte-identical frames on every machine and every run.
+  function renderAt(t) {
+    if (!program) throw new Error("renderAt before a successful compile");
+    gl.bindVertexArray(vao);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    if (uTime) gl.uniform1f(uTime, t);
+    if (uRes) gl.uniform3f(uRes, canvas.width, canvas.height, 1.0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // finish() forces the hang to surface here rather than at an arbitrary later
+    // call, so the caller's timeout attributes it to the right frame.
+    gl.finish();
+  }
+
+  function captureAt(t) {
+    const t0 = performance.now();
+    renderAt(t);
+    const dataUrl = canvas.toDataURL("image/png");
+    return { dataUrl, ms: performance.now() - t0 };
+  }
+
+  window.harness = { ready: true, compile, renderAt, captureAt, canvas, gl };
+
+  // ---- standalone UI below; render.ts uses only window.harness ----
+
+  const srcEl = document.getElementById("src");
+  const logEl = document.getElementById("log");
+  const framesEl = document.getElementById("frames");
+  const runBtn = document.getElementById("run");
+  const loadBtn = document.getElementById("load");
+  const scrub = document.getElementById("scrub");
+  const tlabel = document.getElementById("tlabel");
+  const animateEl = document.getElementById("animate");
+
+  const DEFAULT_SRC = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = fragCoord / iResolution.xy;
+    vec3 col = 0.5 + 0.5 * cos(iTime + uv.xyx + vec3(0.0, 2.0, 4.0));
+    fragColor = vec4(col, 1.0);
+}`;
+  srcEl.value = DEFAULT_SRC;
+
+  function say(text, cls) {
+    logEl.textContent = text;
+    logEl.className = cls || "";
+  }
+
+  function run() {
+    framesEl.innerHTML = "";
+    const c = compile(srcEl.value);
+    if (!c.ok) { say(c.log, "error"); return; }
+
+    const lines = [`compile ok in ${c.ms.toFixed(1)} ms`];
+    for (const t of [0, 1, 2]) {
+      const f = captureAt(t);
+      lines.push(`t${t}  ${f.ms.toFixed(1)} ms`);
+      const wrap = document.createElement("div");
+      wrap.className = "frame";
+      const img = new Image();
+      img.src = f.dataUrl;
+      const cap = document.createElement("div");
+      cap.textContent = `t${t}`;
+      wrap.append(img, cap);
+      framesEl.append(wrap);
+    }
+    renderAt(parseFloat(scrub.value));
+    say(lines.join("\n"), "ok");
+  }
+
+  function preview() {
+    if (!program) return;
+    const t = parseFloat(scrub.value);
+    tlabel.textContent = t.toFixed(2);
+    renderAt(t);
+  }
+
+  runBtn.addEventListener("click", run);
+  scrub.addEventListener("input", () => {
+    if (animateEl.checked) { animateEl.checked = false; animateEl.dispatchEvent(new Event("change")); }
+    preview();
+  });
+
+  loadBtn.addEventListener("click", async () => {
+    try {
+      const r = await fetch("fixtures/good.glsl");
+      if (!r.ok) throw new Error(`${r.status}`);
+      srcEl.value = await r.text();
+      run();
+    } catch (e) {
+      say("could not fetch fixtures/good.glsl (serve this page over http, not file://): " + e.message, "error");
+    }
+  });
+
+  // The preview loop only exists while the box is ticked. render.ts drives this
+  // same page, and a background rAF interleaving draws with its captures would
+  // make the frames depend on wall clock.
+  let raf = 0;
+  let start = 0;
+  function tick() {
+    if (!program) { raf = requestAnimationFrame(tick); return; }
+    const t = ((performance.now() - start) / 1000) % 4;
+    scrub.value = String(t);
+    tlabel.textContent = t.toFixed(2);
+    renderAt(t);
+    raf = requestAnimationFrame(tick);
+  }
+  animateEl.addEventListener("change", () => {
+    if (animateEl.checked) { start = performance.now(); raf = requestAnimationFrame(tick); }
+    else { cancelAnimationFrame(raf); raf = 0; }
+  });
+
+  run();
+})();
+</script>
+</body>
+</html>
