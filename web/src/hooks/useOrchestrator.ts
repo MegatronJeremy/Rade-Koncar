@@ -38,6 +38,21 @@ export class BusyError extends Error {
   }
 }
 
+/**
+ * The orchestrator reports the prompt in flight, but falls back to a run id when
+ * a run was started without one, and an id quoted as if it were a prompt reads
+ * as a bug. Matched on the id's own shape rather than on "has a space", because
+ * a one word prompt is perfectly ordinary.
+ */
+const CONVEX_ID = /^[a-z0-9]{25,}$/;
+
+const asPrompt = (running: string | null | undefined): string | undefined => {
+  if (typeof running !== "string") return undefined;
+  const text = running.trim();
+  if (text.length === 0 || CONVEX_ID.test(text)) return undefined;
+  return text;
+};
+
 const configured = (): string | undefined => {
   const url = import.meta.env.VITE_ORCHESTRATOR_URL;
   if (typeof url !== "string") return undefined;
@@ -136,8 +151,9 @@ export const useOrchestrator = (): {
       };
 
       if (res.status === 429 || detail.busy === true) {
-        setRunning(detail.running);
-        throw new BusyError(detail.running);
+        const other = asPrompt(detail.running);
+        setRunning(other);
+        throw new BusyError(other);
       }
       if (!res.ok) throw new Error(detail.error ?? `Orchestrator returned ${res.status}`);
       setRunning(prompt);
